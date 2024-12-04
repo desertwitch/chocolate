@@ -126,13 +126,31 @@ type Bar struct {
 	rendered bool
 	view     string
 
-	// temp
+	// flavour
 	flavour Flavour
+
+	// flavourPrefs generation function
+	// this can be used to override the default
+	// flavour preferences
+	flavourPrefsFct func() FlavourPrefs
+}
+
+func (b *Bar) defaultFlavourPrefs() FlavourPrefs {
+	ret := NewFlavourPrefs()
+	if len(b.bars) == 0 {
+		ret = ret.BorderType(b.flavour.GetBorderType())
+	}
+
+	return ret
+}
+
+func (b Bar) getStyle() lipgloss.Style {
+	return b.flavour.GetStyle(b.flavourPrefsFct())
 }
 
 func (b *Bar) Resize(size tea.WindowSizeMsg, models map[string]tea.Model, parent *Bar) {
 	// calculate available size for bars
-	w, h := b.flavour.GetFrameSize()
+	w, h := b.getStyle().GetFrameSize()
 	size.Width -= w
 	size.Height -= h
 
@@ -216,18 +234,17 @@ func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType) {
 			b.width = width
 			b.height = height
 
-			b.view = lipgloss.NewStyle().
+			b.view = b.getStyle().
 				Width(b.width).
 				Height(b.height).
-				Border(b.flavour.GetBorder()).
 				Render(models[b.id].View())
 			log.Printf("Dynamic: %s %d %d\n", b.id, b.width, b.height)
 
 			switch layout {
 			case LIST:
-				b.v = height + b.flavour.GetHorizontalFrameSize()
+				b.v = height + b.getStyle().GetHorizontalFrameSize()
 			case LINEAR:
-				b.v = width + b.flavour.GetVerticalFrameSize()
+				b.v = width + b.getStyle().GetVerticalFrameSize()
 			}
 		}
 	}
@@ -240,24 +257,11 @@ func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType) {
 			switch b.layoutType {
 			case LIST:
 				log.Printf("Fixed: %s %d %d\n", c.id, c.width, c.height)
-				b.fixedSize += c.height + b.flavour.GetVerticalFrameSize()
+				b.fixedSize += c.height + c.getStyle().GetVerticalFrameSize()
 			case LINEAR:
 				log.Printf("Fixed: %s %d %d\n", c.id, c.width, c.height)
-				b.fixedSize += c.width + b.flavour.GetHorizontalFrameSize()
+				b.fixedSize += c.width + c.getStyle().GetHorizontalFrameSize()
 			}
-		}
-	}
-}
-
-func (b *Bar) renderFixed(models map[string]tea.Model) {
-	if models[b.id] != nil {
-		if b.IsFixed() {
-			b.view = lipgloss.NewStyle().
-				Width(b.width).
-				Height(b.height).
-				Border(b.flavour.GetBorder()).
-				Render(models[b.id].View())
-			b.rendered = true
 		}
 	}
 }
@@ -265,18 +269,17 @@ func (b *Bar) renderFixed(models map[string]tea.Model) {
 func (b *Bar) render(models map[string]tea.Model) bool {
 	// pre render all dynamic models and set
 	// sizes
-	// b.renderDynamic(models, b.layoutType)
-	// b.resize(models)
+	b.renderDynamic(models, b.layoutType)
+	b.resize(models)
 
 	if models[b.id] != nil && !b.rendered {
 		log.Printf("%s: w=%d h=%d\n", b.id, b.width, b.height)
 		// render the model as this is now real content
 		// the size calculation has to be already done
 		// dynamic models already rendered via preRender
-		b.view = lipgloss.NewStyle().
+		b.view = b.getStyle().
 			Width(b.width).
 			Height(b.height).
-			Border(b.flavour.GetBorder()).
 			Render(models[b.id].View())
 		b.rendered = true
 		return true
@@ -408,16 +411,14 @@ func (b *Bar) joinBars() {
 		}
 		switch b.layoutType {
 		case LIST:
-			b.view = lipgloss.NewStyle().
+			b.view = b.getStyle().
 				// Width(b.width).
 				// Height(b.height).
-				Border(b.flavour.GetBorder()).
 				Render(lipgloss.JoinVertical(0, bars...))
 		case LINEAR:
-			b.view = lipgloss.NewStyle().
+			b.view = b.getStyle().
 				// Width(b.width).
 				// Height(b.height).
-				Border(b.flavour.GetBorder()).
 				Render(lipgloss.JoinHorizontal(0, bars...))
 		}
 		b.rendered = true
@@ -468,6 +469,7 @@ func NewBar(bars []*Bar, opts ...barOptions) *Bar {
 		flavour:    NewFlavour(),
 	}
 	ret.SetParent(1)
+	ret.flavourPrefsFct = ret.defaultFlavourPrefs
 
 	for _, opt := range opts {
 		opt(ret)

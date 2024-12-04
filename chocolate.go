@@ -67,8 +67,6 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 func (c Chocolate) View() string {
 	log.Printf("View called\n")
 	c.bar.resetRender()
-	c.bar.renderDynamic(c.models, c.bar.layoutType)
-	c.bar.resize(c.models)
 	c.bar.render(c.models)
 	c.bar.joinBars()
 	return c.bar.view
