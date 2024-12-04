@@ -43,6 +43,16 @@ type Flavour interface {
 	SetBorder(BorderType)
 
 	GetFrameSize() (int, int)
+	GetHorizontalFrameSize() int
+	GetVerticalFrameSize() int
+	GetStyle(FlavourPrefs) lipgloss.Style
+}
+
+type FlavourPrefs struct {
+	Type                FlavourType
+	ForegroundHighlight bool
+	BackgroundHighlight bool
+	Border              bool
 }
 
 type flavour struct {
@@ -82,6 +92,59 @@ func (f *flavour) GetFrameSize() (int, int) {
 		Border(f.GetBorder())
 
 	return s.GetFrameSize()
+}
+
+func (f *flavour) GetHorizontalFrameSize() int {
+	s := lipgloss.NewStyle().
+		Border(f.GetBorder())
+
+	return s.GetHorizontalFrameSize()
+}
+
+func (f *flavour) GetVerticalFrameSize() int {
+	s := lipgloss.NewStyle().
+		Border(f.GetBorder())
+
+	return s.GetVerticalFrameSize()
+}
+
+func (f *flavour) GetStyle(v FlavourPrefs) lipgloss.Style {
+	s := lipgloss.NewStyle()
+
+	if v.Border {
+		s = s.Border(f.GetBorder())
+	}
+
+	switch v.Type {
+	case FLAVOUR_PRIMARY:
+		s = s.Foreground(f.GetColor(FOREGROUND_PRIMARY))
+		s = s.Background(f.GetColor(BACKGROUND_PRIMARY))
+		s = s.BorderForeground(f.GetColor(FOREGROUND_PRIMARY))
+		s = s.BorderBackground(f.GetColor(BACKGROUND_PRIMARY))
+		if v.ForegroundHighlight {
+			s = s.Foreground(f.GetColor(FOREGROUND_HIGHLIGHT_PRIMARY))
+			s = s.BorderForeground(f.GetColor(FOREGROUND_HIGHLIGHT_PRIMARY))
+		}
+		if v.BackgroundHighlight {
+			s = s.Background(f.GetColor(BACKGROUND_HIGHLIGHT_PRIMARY))
+			s = s.BorderBackground(f.GetColor(BACKGROUND_HIGHLIGHT_PRIMARY))
+		}
+	case FLAVOUR_SECONDARY:
+		s = s.Foreground(f.GetColor(FOREGROUND_SECONDARY))
+		s = s.Background(f.GetColor(BACKGROUND_SECONDARY))
+		s = s.BorderForeground(f.GetColor(FOREGROUND_SECONDARY))
+		s = s.BorderBackground(f.GetColor(BACKGROUND_SECONDARY))
+		if v.ForegroundHighlight {
+			s = s.Foreground(f.GetColor(FOREGROUND_HIGHLIGHT_SECONDARY))
+			s = s.BorderForeground(f.GetColor(FOREGROUND_HIGHLIGHT_SECONDARY))
+		}
+		if v.BackgroundHighlight {
+			s = s.Background(f.GetColor(BACKGROUND_HIGHLIGHT_SECONDARY))
+			s = s.BorderBackground(f.GetColor(BACKGROUND_HIGHLIGHT_SECONDARY))
+		}
+	}
+
+	return s
 }
 
 type flavourOptions func(*flavour)
