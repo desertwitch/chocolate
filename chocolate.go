@@ -1,7 +1,6 @@
 package chocolate
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -13,19 +12,16 @@ type Chocolate struct {
 	KeyMap KeyMap
 
 	// root bar
-	bar *Bar
+	bar *ChocolateBar
 
 	// theme
 	flavour Flavour
-
-	// models
-	models map[string]tea.Model
 }
 
 func (c *Chocolate) handleResize(size tea.WindowSizeMsg) {
 	log.Printf("chocolate: w=%d h=%d\n", size.Width, size.Height)
 	if c.bar != nil {
-		c.bar.Resize(size, c.models, c.bar)
+		c.bar.Resize(size.Width, size.Height)
 	}
 }
 
@@ -65,46 +61,21 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 }
 
 func (c Chocolate) View() string {
-	var ret string
-	log.Printf("View called\n")
-	c.bar.resetRender()
-	c.bar.render(c.models)
-	c.bar.joinBars()
-	ret = c.bar.view
-	c.bar.resetRender()
-	return ret
-}
-
-func (c *Chocolate) SetModel(id string, model tea.Model) error {
-	if _, ok := c.models[id]; !ok {
-		return fmt.Errorf("No bar with id: %s", id)
-	}
-	c.models[id] = model
-	return nil
+	return c.bar.Render()
 }
 
 type chocolateOptions func(*Chocolate)
 
-func (c Chocolate) initModels(bar *Bar) {
-	c.models[bar.id] = nil
-	for _, b := range bar.bars {
-		c.initModels(b)
-	}
-}
-
-func NewChocolate(bar *Bar, opts ...chocolateOptions) *Chocolate {
+func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) *Chocolate {
 	ret := &Chocolate{
 		KeyMap:  DefaultKeyMap(),
 		flavour: NewFlavour(),
 		bar:     bar,
-		models:  make(map[string]tea.Model),
 	}
 
 	for _, opt := range opts {
 		opt(ret)
 	}
-
-	ret.initModels(bar)
 
 	return ret
 }
