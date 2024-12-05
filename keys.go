@@ -6,15 +6,20 @@ import "github.com/charmbracelet/bubbles/key"
 // is used to render the menu
 type KeyMap struct {
 	// Keybinds used by chocolate
+	Quit    key.Binding
 	NextBar key.Binding
 	PrevBar key.Binding
-	Child   key.Binding
-	Parent  key.Binding
+	Focus   key.Binding
+	Release key.Binding
 }
 
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
+		Quit: key.NewBinding(
+			key.WithKeys("q"),
+			key.WithHelp("q", "Quit"),
+		),
 		NextBar: key.NewBinding(
 			key.WithKeys("tab", "n"),
 			key.WithHelp("tab/n", "Go to next"),
@@ -23,13 +28,13 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("shift+tab", "p"),
 			key.WithHelp("shift+tab/p", "Go to prev"),
 		),
-		Child: key.NewBinding(
+		Focus: key.NewBinding(
 			key.WithKeys("enter"),
-			key.WithHelp("enter", "Go to child"),
+			key.WithHelp("enter", "Hand input over to selected"),
 		),
-		Parent: key.NewBinding(
+		Release: key.NewBinding(
 			key.WithKeys("esc"),
-			key.WithHelp("esc", "Go to parent"),
+			key.WithHelp("esc", "Release input from selected"),
 		),
 	}
 }

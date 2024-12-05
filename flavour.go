@@ -48,7 +48,7 @@ func (p FlavourPrefs) Background(v ColorType) FlavourPrefs {
 }
 
 func (p FlavourPrefs) ForegroundBorder(v ColorType) FlavourPrefs {
-	p.backgroundBorder = v
+	p.foregroundBorder = v
 	return p
 }
 

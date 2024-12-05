@@ -119,11 +119,6 @@ type ChocolateBar struct {
 	width  int
 	height int
 
-	// fixed sizing already used by dynamic and fixed
-	// scaling bars
-	usedWidth  int
-	usedHeight int
-
 	// model of the entry this can only be set, if
 	// there are no sub bars and is the final leaf
 	// of the whole tree and provides the real content
@@ -148,13 +143,19 @@ type ChocolateBar struct {
 	// flavourPrefs generation function
 	// this can be used to override the default
 	// flavour preferences
-	flavourPrefsFct func() FlavourPrefs
+	FlavourPrefsFct func() FlavourPrefs
 
 	// if the bar is hidden
 	// hidden bars are removed from the layout
 	// rendering and the space is used for the
 	// other bars
 	hidden bool
+
+	// if this bar can be selected
+	selectable bool
+
+	// if this bar has input focus
+	focus bool
 }
 
 func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
@@ -162,12 +163,19 @@ func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 	if len(b.bars) == 0 {
 		ret = ret.BorderType(b.flavour.GetBorderType())
 	}
+	if b.focus {
+		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+	}
 
 	return ret
 }
 
 func (b ChocolateBar) GetStyle() lipgloss.Style {
-	return b.flavour.GetStyle(b.flavourPrefsFct())
+	return b.flavour.GetStyle(b.FlavourPrefsFct())
+}
+
+func (b *ChocolateBar) Select(v bool) {
+	b.focus = v
 }
 
 func (b *ChocolateBar) Resize(w, h int) {
@@ -504,6 +512,17 @@ func (b *ChocolateBar) Hide(v bool) {
 	b.hidden = v
 }
 
+func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+	var cmd tea.Cmd
+
+	if b.model != nil {
+		b.model, cmd = b.model.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+	return tea.Batch(cmds...)
+}
+
 type chocolateBarOptions func(*ChocolateBar)
 
 func WithLayout(v LayoutType) func(*ChocolateBar) {
@@ -525,6 +544,18 @@ func WithModel(v tea.Model) func(*ChocolateBar) {
 	}
 }
 
+func WithBarFlavor(v Flavour) func(*ChocolateBar) {
+	return func(b *ChocolateBar) {
+		b.flavour = v
+	}
+}
+
+func WithSelectable() func(*ChocolateBar) {
+	return func(b *ChocolateBar) {
+		b.selectable = true
+	}
+}
+
 func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *ChocolateBar {
 	ret := &ChocolateBar{
 		id:            uuid.NewString(),
@@ -540,6 +571,8 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 		contentWidth:  0,
 		contentHeight: 0,
 		hidden:        false,
+		selectable:    false,
+		focus:         false,
 	}
 	ret.X = NewParentScaler(1)
 	ret.Y = NewParentScaler(1)
@@ -548,7 +581,7 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 		c.parent = ret
 	}
 
-	ret.flavourPrefsFct = ret.defaultFlavourPrefs
+	ret.FlavourPrefsFct = ret.defaultFlavourPrefs
 
 	for _, opt := range opts {
 		opt(ret)
