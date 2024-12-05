@@ -65,11 +65,14 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 }
 
 func (c Chocolate) View() string {
+	var ret string
 	log.Printf("View called\n")
 	c.bar.resetRender()
 	c.bar.render(c.models)
 	c.bar.joinBars()
-	return c.bar.view
+	ret = c.bar.view
+	c.bar.resetRender()
+	return ret
 }
 
 func (c *Chocolate) SetModel(id string, model tea.Model) error {

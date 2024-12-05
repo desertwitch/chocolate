@@ -26,19 +26,6 @@ const (
 	FIXED
 )
 
-type Scaling interface {
-	SetParent(int)
-	SetDynamic()
-	SetFixed(int)
-	GetScaling() (ScalingType, int)
-	GetDynamic() (bool, int)
-	GetParent() (bool, int)
-	GetFixed() (bool, int)
-	IsParent() bool
-	IsDynamic() bool
-	IsFixed() bool
-}
-
 type scaling struct {
 	t ScalingType
 	v int
@@ -133,6 +120,8 @@ type Bar struct {
 	// this can be used to override the default
 	// flavour preferences
 	flavourPrefsFct func() FlavourPrefs
+
+	Hidden bool
 }
 
 func (b *Bar) defaultFlavourPrefs() FlavourPrefs {
@@ -154,9 +143,25 @@ func (b *Bar) Resize(size tea.WindowSizeMsg, models map[string]tea.Model, parent
 	size.Width -= w
 	size.Height -= h
 
+	// avoid resizing rendered dynamics
+	if b.IsDynamic() && b.rendered {
+		switch b.layoutType {
+		case LIST:
+			b.width = size.Width
+			size.Height = b.height
+		case LINEAR:
+			b.height = size.Height
+			size.Width = b.width
+		}
+		b.rendered = false
+		if models[b.id] != nil {
+			models[b.id].Update(size)
+		}
+		b.render(models)
+		log.Printf("DynREsize: %s w=%d h=%d\n", b.id, b.width, b.height)
+	}
 	b.width = size.Width
 	b.height = size.Height
-	log.Printf("Bar: %s w=%d h=%d\n", b.id, b.width, b.height)
 
 	// check size
 	if size.Width <= 0 || size.Height <= 0 {
@@ -193,7 +198,6 @@ func (b *Bar) Resize(size tea.WindowSizeMsg, models map[string]tea.Model, parent
 	// if there is a model set then update
 	// it's size and return
 	if models[b.id] != nil {
-		log.Printf("Model: %s w=%d h=%d\n", b.id, size.Width, size.Height)
 		models[b.id].Update(size)
 		return
 	}
@@ -218,10 +222,9 @@ func (b *Bar) resetRender() {
 	}
 }
 
-func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType) {
-	if models[b.id] != nil {
-		if b.IsDynamic() && !b.rendered {
-			log.Printf("Dynamic: %s\n", b.id)
+func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType, parentDynamic bool) {
+	if parentDynamic {
+		if models[b.id] != nil {
 			view := models[b.id].View()
 			// update sizes by real c.ontent
 			width := lipgloss.Width(view)   // - b.flavour.GetHorizontalFrameSize()
@@ -230,36 +233,122 @@ func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType) {
 				// TODO: error handling
 				return
 			}
-			b.rendered = true
-			b.width = width
+			// b.rendered = true
+
+			// b.height = height
+			// b.width = width
 			b.height = height
+			b.width = width
+			log.Printf("D: %s w=%d h=%d\n", b.id, b.width, b.height)
+			// b.Resize(tea.WindowSizeMsg{Width: b.width, Height: b.height}, models, b)
 
-			b.view = b.getStyle().
-				Width(b.width).
-				Height(b.height).
-				Render(models[b.id].View())
-			log.Printf("Dynamic: %s %d %d\n", b.id, b.width, b.height)
+			// switch layout {
+			// case LIST:
+			// 	b.v = height + b.getStyle().GetHorizontalFrameSize()
+			// case LINEAR:
+			// 	b.v = width + b.getStyle().GetVerticalFrameSize()
+			// }
+		}
+	} else {
+		if b.IsDynamic() {
+			// if b.rendered {
+			// 	return
+			// }
+			if models[b.id] != nil {
+				view := models[b.id].View()
+				// update sizes by real c.ontent
+				width := lipgloss.Width(view)   // - b.flavour.GetHorizontalFrameSize()
+				height := lipgloss.Height(view) // - b.flavour.GetVerticalFrameSize()
+				if width > b.width || height > b.height {
+					// TODO: error handling
+					return
+				}
+				b.rendered = true
 
-			switch layout {
-			case LIST:
-				b.v = height + b.getStyle().GetHorizontalFrameSize()
-			case LINEAR:
-				b.v = width + b.getStyle().GetVerticalFrameSize()
+				// b.height = height
+				// b.width = width
+				switch layout {
+				case LIST:
+					b.height = height
+				case LINEAR:
+					b.width = width
+				}
+				// log.Printf("D: %s w=%d h=%d\n", b.id, b.width, b.height)
+				// b.Resize(tea.WindowSizeMsg{Width: b.width, Height: b.height}, models, b)
+
+				b.view = b.getStyle().
+					Width(b.width).
+					Height(b.height).
+					Render(models[b.id].View())
+
+				switch layout {
+				case LIST:
+					b.v = height + b.getStyle().GetHorizontalFrameSize()
+				case LINEAR:
+					b.v = width + b.getStyle().GetVerticalFrameSize()
+				}
+			} else {
+				for _, c := range b.bars {
+					if c.Hidden {
+						continue
+					}
+					c.renderDynamic(models, layout, b.IsDynamic())
+				}
+				switch layout {
+				case LIST:
+					set := false
+					for _, c := range b.bars {
+						if c.Hidden {
+							continue
+						}
+						cheight := c.height + c.getStyle().GetVerticalFrameSize()
+						if !set {
+							b.height = cheight
+							set = true
+						} else {
+							if cheight > b.height {
+								b.height = cheight
+							}
+						}
+					}
+				case LINEAR:
+					set := false
+					for _, c := range b.bars {
+						if c.Hidden {
+							continue
+						}
+						cwidth := c.width + c.getStyle().GetHorizontalFrameSize()
+						if !set {
+							b.width = cwidth
+							set = true
+						} else {
+							if cwidth > b.width {
+								b.width = cwidth
+							}
+						}
+					}
+				}
 			}
 		}
 	}
 
 	for _, c := range b.bars {
-		c.renderDynamic(models, b.layoutType)
+		// if c.Hidden {
+		// 	continue
+		// }
+		c.renderDynamic(models, b.layoutType, b.IsDynamic())
 	}
+	b.fixedSize = 0
 	for _, c := range b.bars {
+		if c.Hidden {
+			continue
+		}
 		if c.IsDynamic() || c.IsFixed() {
+			log.Printf("RenderDynamic: %s %d %d\n", c.id, c.width, c.height)
 			switch b.layoutType {
 			case LIST:
-				log.Printf("Fixed: %s %d %d\n", c.id, c.width, c.height)
 				b.fixedSize += c.height + c.getStyle().GetVerticalFrameSize()
 			case LINEAR:
-				log.Printf("Fixed: %s %d %d\n", c.id, c.width, c.height)
 				b.fixedSize += c.width + c.getStyle().GetHorizontalFrameSize()
 			}
 		}
@@ -267,13 +356,17 @@ func (b *Bar) renderDynamic(models map[string]tea.Model, layout LayoutType) {
 }
 
 func (b *Bar) render(models map[string]tea.Model) bool {
+	if b.Hidden {
+		return false
+	}
 	// pre render all dynamic models and set
 	// sizes
-	b.renderDynamic(models, b.layoutType)
+	b.renderDynamic(models, b.layoutType, b.IsDynamic())
 	b.resize(models)
+	// b.resizeDynamic()
 
 	if models[b.id] != nil && !b.rendered {
-		log.Printf("%s: w=%d h=%d\n", b.id, b.width, b.height)
+		// log.Printf("WTF: %s\n", b.id)
 		// render the model as this is now real content
 		// the size calculation has to be already done
 		// dynamic models already rendered via preRender
@@ -296,6 +389,7 @@ func (b *Bar) render(models map[string]tea.Model) bool {
 }
 
 func (b *Bar) resize(models map[string]tea.Model) {
+	// log.Printf("%s: w=%d h=%d\n", b.id, b.width, b.height)
 	var check int
 	var sizeTotal int
 	var sizeMsgFct func(v int) tea.WindowSizeMsg
@@ -323,7 +417,6 @@ func (b *Bar) resize(models map[string]tea.Model) {
 
 	// check sizes
 	if b.fixedSize >= check {
-		log.Printf("ID: %s fixed=%d\n", b.id, b.fixedSize)
 		// TODO: error handling
 		return
 	}
@@ -336,29 +429,24 @@ func (b *Bar) resize(models map[string]tea.Model) {
 			totalParents++
 		}
 	}
-	log.Printf("ID: %s totalParts=%d totalParents=%d fixed=%d\n", b.id, totalParts, totalParents, b.fixedSize)
 
 	if totalParts > 0 {
 		partSize := (sizeTotal - b.fixedSize) / totalParts
 		partLast := (sizeTotal - b.fixedSize) % totalParts
 
 		parentNum := 0
-		for i, c := range b.bars {
+		for _, c := range b.bars {
 			if ok, v := c.GetParent(); ok {
 				parentNum++
 				size := v * partSize
 				if parentNum == totalParents {
 					size += partLast
 				}
-				sizeMsg := sizeMsgFct(size)
 				// sizeMsg.Width -= c.flavour.GetHorizontalFrameSize()
 				// sizeMsg.Height -= c.flavour.GetVerticalFrameSize()
-				log.Printf("Resize\n")
-				log.Printf("%s: w=%d h=%d\n", c.id, sizeMsg.Width, sizeMsg.Height)
 				c.Resize(sizeMsgFct(size), models, b)
 				c.resize(models)
 				// b.bars[i] = c
-				log.Printf("%s: w=%d h=%d\n", b.bars[i].id, b.bars[i].width, b.bars[i].height)
 			} else {
 				c.resize(models)
 			}
@@ -403,10 +491,17 @@ func (b *Bar) renderHorizontal(models map[string]tea.Model) {
 }
 
 func (b *Bar) joinBars() {
+	if b.Hidden {
+		return
+	}
 	var bars []string
 	if !b.rendered {
+		log.Printf("%s: %d %d\n", b.id, b.width, b.height)
 		for _, c := range b.bars {
 			c.joinBars()
+			if c.Hidden {
+				continue
+			}
 			bars = append(bars, c.view)
 		}
 		switch b.layoutType {
