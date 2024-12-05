@@ -465,12 +465,19 @@ func (b *ChocolateBar) joinBars() {
 
 	var bars []string
 	if !b.rendered {
+		s := b.GetStyle()
+		switch b.layoutType {
+		case LIST:
+			s = s.Width(b.width)
+		case LINEAR:
+			s = s.Height(b.height)
+		}
 		for _, c := range b.bars {
 			c.joinBars()
 			if c.hidden {
 				continue
 			}
-			bars = append(bars, c.view)
+			bars = append(bars, s.Render(c.view))
 		}
 		switch b.layoutType {
 		case LIST:

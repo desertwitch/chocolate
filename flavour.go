@@ -29,12 +29,23 @@ const (
 	HIDDEN
 )
 
+type Alignment int
+
+const (
+	NO Alignment = iota
+	START
+	END
+	CENTER
+)
+
 type FlavourPrefs struct {
-	foreground       ColorType
-	background       ColorType
-	foregroundBorder ColorType
-	backgroundBorder ColorType
-	borderType       BorderType
+	foreground          ColorType
+	background          ColorType
+	foregroundBorder    ColorType
+	backgroundBorder    ColorType
+	borderType          BorderType
+	horizontalAlignment Alignment
+	verticalAlignment   Alignment
 }
 
 func (p FlavourPrefs) Foreground(v ColorType) FlavourPrefs {
@@ -62,13 +73,25 @@ func (p FlavourPrefs) BorderType(v BorderType) FlavourPrefs {
 	return p
 }
 
+func (p FlavourPrefs) HorizontalAlignment(v Alignment) FlavourPrefs {
+	p.horizontalAlignment = v
+	return p
+}
+
+func (p FlavourPrefs) VerticalAlignment(v Alignment) FlavourPrefs {
+	p.verticalAlignment = v
+	return p
+}
+
 func NewFlavourPrefs() FlavourPrefs {
 	ret := FlavourPrefs{
-		foreground:       FOREGROUND_PRIMARY,
-		background:       BACKGROUND_PRIMARY,
-		foregroundBorder: FOREGROUND_PRIMARY,
-		backgroundBorder: BACKGROUND_PRIMARY,
-		borderType:       NONE,
+		foreground:          FOREGROUND_PRIMARY,
+		background:          BACKGROUND_PRIMARY,
+		foregroundBorder:    FOREGROUND_PRIMARY,
+		backgroundBorder:    BACKGROUND_PRIMARY,
+		borderType:          NONE,
+		horizontalAlignment: NO,
+		verticalAlignment:   NO,
 	}
 
 	return ret
@@ -147,6 +170,24 @@ func (f *flavour) GetStyle(v FlavourPrefs) lipgloss.Style {
 
 	if v.borderType != NONE {
 		s = s.Border(f.GetBorder())
+	}
+
+	switch v.horizontalAlignment {
+	case START:
+		s = s.AlignHorizontal(lipgloss.Top)
+	case END:
+		s = s.AlignHorizontal(lipgloss.Bottom)
+	case CENTER:
+		s = s.AlignHorizontal(lipgloss.Center)
+	}
+
+	switch v.verticalAlignment {
+	case START:
+		s = s.AlignVertical(lipgloss.Left)
+	case END:
+		s = s.AlignVertical(lipgloss.Right)
+	case CENTER:
+		s = s.AlignVertical(lipgloss.Center)
 	}
 
 	s = s.Foreground(f.GetColor(v.foreground))
