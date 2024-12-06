@@ -477,50 +477,81 @@ func (b *ChocolateBar) joinBars() {
 
 	var bars []string
 	if !b.rendered {
-		b.rendered = true
 		for _, c := range b.bars {
 			c.joinBars()
 			if c.hidden {
 				continue
 			}
 			w, h := lipgloss.Size(c.view)
-			switch b.layoutType {
-			case LIST:
+			if len(b.bars) == 1 {
+				barView := c.view
 				if w < b.width {
-					s := b.GetStyle().
+					barView = b.GetStyle().
 						BorderTop(false).
 						BorderBottom(false).
 						BorderLeft(false).
 						BorderRight(false).
-						Width(b.width + b.GetStyle().GetHorizontalFrameSize())
-					bars = append(bars, s.Render(c.view))
-				} else {
-					bars = append(bars, c.view)
+						Width(b.width + b.GetStyle().GetHorizontalFrameSize()).
+						Render(barView)
 				}
-			case LINEAR:
 				if h < b.height {
-					s := b.GetStyle().
+					barView = b.GetStyle().
 						BorderTop(false).
 						BorderBottom(false).
 						BorderLeft(false).
 						BorderRight(false).
-						Height(b.height - b.GetStyle().GetVerticalFrameSize())
-					bars = append(bars, s.Render(c.view))
-				} else {
+						Height(b.height - b.GetStyle().GetVerticalFrameSize()).
+						Render(barView)
+				}
+				bars = append(bars, barView)
+			} else {
+				switch b.layoutType {
+				case LIST:
+					if w < b.width {
+						s := b.GetStyle().
+							BorderTop(false).
+							BorderBottom(false).
+							BorderLeft(false).
+							BorderRight(false).
+							Width(b.width + b.GetStyle().GetHorizontalFrameSize())
+						bars = append(bars, s.Render(c.view))
+					} else {
+						bars = append(bars, c.view)
+					}
+				case LINEAR:
+					if h < b.height {
+						s := b.GetStyle().
+							BorderTop(false).
+							BorderBottom(false).
+							BorderLeft(false).
+							BorderRight(false).
+							Height(b.height - b.GetStyle().GetVerticalFrameSize())
+						bars = append(bars, s.Render(c.view))
+					} else {
+						bars = append(bars, c.view)
+					}
+				default:
 					bars = append(bars, c.view)
 				}
-			default:
-				bars = append(bars, c.view)
 			}
 		}
 		switch b.layoutType {
 		case LIST:
-			b.view = b.GetStyle().
+			s := b.GetStyle()
+			if b.parent == nil {
+				s = s.Height(b.maxHeight)
+			}
+			b.view = s.
 				Render(lipgloss.JoinVertical(0, bars...))
 		case LINEAR:
-			b.view = b.GetStyle().
+			s := b.GetStyle()
+			if b.parent == nil {
+				s = s.Width(b.maxWidth)
+			}
+			b.view = s.
 				Render(lipgloss.JoinHorizontal(0, bars...))
 		}
+		b.rendered = true
 	}
 }
 
