@@ -1,6 +1,8 @@
 package chocolate
 
 import (
+	"log"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
@@ -93,6 +95,13 @@ type ChocolateBar struct {
 	Scaling
 	id string
 
+	// backref to the Chocolate the bar
+	// belongs to
+	// this is used to centralize some
+	// parts for the unified theming
+	// and controls like selector
+	choc *Chocolate
+
 	// bars in order for the layout
 	bars []*ChocolateBar
 	// backref to the parent bar
@@ -137,9 +146,6 @@ type ChocolateBar struct {
 	view     string
 	rendered bool
 
-	// flavour
-	flavour Flavour
-
 	// flavourPrefs generation function
 	// this can be used to override the default
 	// flavour preferences
@@ -153,41 +159,50 @@ type ChocolateBar struct {
 
 	// if this bar can be selected
 	selectable bool
-
-	// if this bar is selected
-	selected bool
-	// if this bar has input focus
-	focus bool
 }
 
 func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 	ret := NewFlavourPrefs()
-	if len(b.bars) == 0 {
-		ret = ret.BorderType(b.flavour.GetBorderType())
+	if b.model != nil || b.IsRoot() {
+		ret = ret.BorderType(b.choc.GetFlavour().GetBorderType())
 	}
-	if b.selected {
-		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
-	}
-	if b.focus {
-		ret = ret.Foreground(FOREGROUND_HIGHLIGHT_PRIMARY)
-		ret = ret.Background(BACKGROUND_HIGHLIGHT_PRIMARY)
-		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
-		// ret = ret.BackgroundBorder(BACKGROUND_HIGHLIGHT_PRIMARY)
+	if b.choc == nil {
+		log.Printf("%s no choc??\n", b.id)
+	} else {
+		if b.choc.IsSelected(b) {
+			ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+		}
+		if b.choc.IsFocused(b) {
+			ret = ret.Foreground(FOREGROUND_HIGHLIGHT_PRIMARY)
+			ret = ret.Background(BACKGROUND_HIGHLIGHT_PRIMARY)
+			ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+		}
 	}
 
 	return ret
 }
 
-func (b ChocolateBar) GetStyle() lipgloss.Style {
-	return b.flavour.GetStyle(b.FlavourPrefsFct())
+func (b *ChocolateBar) GetStyle() lipgloss.Style {
+	return b.choc.GetFlavour().GetStyle(b.FlavourPrefsFct())
 }
 
-func (b *ChocolateBar) Select(v bool) {
-	b.selected = v
+func (b ChocolateBar) IsRoot() bool {
+	return b.parent == nil
 }
 
-func (b *ChocolateBar) Focus(v bool) {
-	b.focus = v
+func (b *ChocolateBar) setChocolate(v *Chocolate) {
+	b.choc = v
+	for _, c := range b.bars {
+		c.setChocolate(v)
+	}
+}
+
+func (b *ChocolateBar) SetChocolate(v *Chocolate) {
+	if b.IsRoot() {
+		b.setChocolate(v)
+	} else {
+		b.parent.SetChocolate(v)
+	}
 }
 
 func (b *ChocolateBar) Resize(w, h int) {
@@ -213,6 +228,13 @@ func (b *ChocolateBar) Resize(w, h int) {
 
 	b.maxWidth = width
 	b.maxHeight = height
+
+	// the root bar doesn't have to rescale itself
+	if b.IsRoot() {
+		b.width = width
+		b.height = height
+	}
+
 	if b.model != nil {
 		b.model, _ = b.model.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	} else {
@@ -244,12 +266,12 @@ func (b *ChocolateBar) preRender() {
 			}
 			b.preRendered = true
 
-			if b.parent != nil {
+			if !b.IsRoot() {
 				t, v := b.X.Get()
 				switch t {
 				case DYNAMIC:
 					b.parent.contentWidth += b.contentWidth + b.GetStyle().GetHorizontalFrameSize()
-					b.width = b.contentWidth //+ b.getStyle().GetHorizontalFrameSize()
+					b.width = b.contentWidth
 				case FIXED:
 					b.parent.contentWidth += v + b.GetStyle().GetHorizontalFrameSize()
 					b.width = v
@@ -258,7 +280,7 @@ func (b *ChocolateBar) preRender() {
 				switch t {
 				case DYNAMIC:
 					b.parent.contentHeight += b.contentHeight + b.GetStyle().GetVerticalFrameSize()
-					b.height = b.contentHeight //+ b.getStyle().GetVerticalFrameSize()
+					b.height = b.contentHeight
 				case FIXED:
 					b.parent.contentHeight += v + b.GetStyle().GetVerticalFrameSize()
 					b.height = v
@@ -278,7 +300,7 @@ func (b *ChocolateBar) preRender() {
 	// all sub bars of this model are now pre rendered
 	// we can build up the used sizes of the fixed
 	// and dynamic sub bars
-	if b.parent != nil {
+	if !b.IsRoot() {
 		t, v := b.X.Get()
 		switch t {
 		case DYNAMIC:
@@ -351,13 +373,13 @@ func (b *ChocolateBar) recalcVerticalSizes() {
 		}
 	}
 
-	b.height = b.contentHeight
-	if b.height > b.maxHeight {
-		// TODO: error handling
-		return
-	}
+	if !b.IsRoot() {
+		b.height = b.contentHeight
+		if b.height > b.maxHeight {
+			// TODO: error handling
+			return
+		}
 
-	if b.parent != nil {
 		b.parent.contentHeight += b.height
 	}
 	b.preRendered = true
@@ -399,13 +421,12 @@ func (b *ChocolateBar) recalcHorizontalSizes() {
 		}
 	}
 
-	b.width = b.contentWidth
-	if b.width > b.maxWidth {
-		// TODO: error handling
-		return
-	}
-
-	if b.parent != nil {
+	if !b.IsRoot() {
+		b.width = b.contentWidth
+		if b.width > b.maxWidth {
+			// TODO: error handling
+			return
+		}
 		b.parent.contentWidth += b.width
 	}
 	b.preRendered = true
@@ -421,25 +442,23 @@ func (b *ChocolateBar) finalizeSizing() {
 		c.finalizeSizing()
 	}
 
-	width := b.maxWidth
-	height := b.maxHeight
-	if b.parent != nil {
-		width = b.parent.width
-		height = b.parent.height
+	if !b.IsRoot() {
+		width := b.parent.width
+		height := b.parent.height
 		if width <= 0 {
 			width = b.parent.maxWidth
 		}
 		if height <= 0 {
 			height = b.parent.maxHeight
 		}
-	}
-	if b.width <= 0 {
-		b.width = width - b.GetStyle().GetHorizontalFrameSize()
-	}
-	if b.height <= 0 {
-		b.height = height - b.GetStyle().GetVerticalFrameSize()
-	}
+		if b.width <= 0 {
+			b.width = width - b.GetStyle().GetHorizontalFrameSize()
+		}
+		if b.height <= 0 {
+			b.height = height - b.GetStyle().GetVerticalFrameSize()
+		}
 
+	}
 	if b.model != nil {
 		b.model, _ = b.model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
 	}
@@ -475,6 +494,19 @@ func (b *ChocolateBar) joinBars() {
 		return
 	}
 
+	if b.rendered {
+		return
+	}
+
+	switch b.layoutType {
+	case LIST:
+		b.joinVerticalBars()
+	case LINEAR:
+		b.joinHorizontalBars()
+	}
+}
+
+func (b *ChocolateBar) joinVerticalBars() {
 	var bars []string
 	if !b.rendered {
 		for _, c := range b.bars {
@@ -482,77 +514,48 @@ func (b *ChocolateBar) joinBars() {
 			if c.hidden {
 				continue
 			}
-			w, h := lipgloss.Size(c.view)
-			if len(b.bars) == 1 {
-				barView := c.view
-				if w < b.width {
-					barView = b.GetStyle().
-						BorderTop(false).
-						BorderBottom(false).
-						BorderLeft(false).
-						BorderRight(false).
-						Width(b.width + b.GetStyle().GetHorizontalFrameSize()).
-						Render(barView)
-				}
-				if h < b.height {
-					barView = b.GetStyle().
-						BorderTop(false).
-						BorderBottom(false).
-						BorderLeft(false).
-						BorderRight(false).
-						Height(b.height - b.GetStyle().GetVerticalFrameSize()).
-						Render(barView)
-				}
-				bars = append(bars, barView)
-			} else {
-				switch b.layoutType {
-				case LIST:
-					if w < b.width {
-						s := b.GetStyle().
-							BorderTop(false).
-							BorderBottom(false).
-							BorderLeft(false).
-							BorderRight(false).
-							Width(b.width + b.GetStyle().GetHorizontalFrameSize())
-						bars = append(bars, s.Render(c.view))
-					} else {
-						bars = append(bars, c.view)
-					}
-				case LINEAR:
-					if h < b.height {
-						s := b.GetStyle().
-							BorderTop(false).
-							BorderBottom(false).
-							BorderLeft(false).
-							BorderRight(false).
-							Height(b.height - b.GetStyle().GetVerticalFrameSize())
-						bars = append(bars, s.Render(c.view))
-					} else {
-						bars = append(bars, c.view)
-					}
-				default:
-					bars = append(bars, c.view)
-				}
-			}
+			s := b.GetStyle().
+				BorderTop(false).
+				BorderBottom(false).
+				BorderLeft(false).
+				BorderRight(false).
+				Width(b.width)
+			bars = append(bars, s.Render(c.view))
 		}
-		switch b.layoutType {
-		case LIST:
-			s := b.GetStyle()
-			if b.parent == nil {
-				s = s.Height(b.maxHeight)
-			}
-			b.view = s.
-				Render(lipgloss.JoinVertical(0, bars...))
-		case LINEAR:
-			s := b.GetStyle()
-			if b.parent == nil {
-				s = s.Width(b.maxWidth)
-			}
-			b.view = s.
-				Render(lipgloss.JoinHorizontal(0, bars...))
+		s := b.GetStyle()
+		if b.IsRoot() {
+			s = s.Height(b.height)
 		}
-		b.rendered = true
+		b.view = s.
+			Render(lipgloss.JoinVertical(0, bars...))
 	}
+	b.rendered = true
+}
+
+func (b *ChocolateBar) joinHorizontalBars() {
+	var bars []string
+	if !b.rendered {
+		for _, c := range b.bars {
+			c.joinBars()
+			if c.hidden {
+				continue
+			}
+			s := b.GetStyle().
+				BorderTop(false).
+				BorderBottom(false).
+				BorderLeft(false).
+				BorderRight(false).
+				Height(b.height)
+			bars = append(bars, s.Render(c.view))
+		}
+		s := b.GetStyle()
+		if b.IsRoot() {
+			s = s.Width(b.width)
+		}
+		b.view = s.
+			Render(lipgloss.JoinHorizontal(0, bars...))
+	}
+	b.rendered = true
 }
 
 func (b *ChocolateBar) resetRender() {
@@ -560,11 +563,14 @@ func (b *ChocolateBar) resetRender() {
 		c.resetRender()
 	}
 
+	// the root bar must not reset it's size
+	if !b.IsRoot() {
+		b.width = 0
+		b.height = 0
+	}
 	b.preRendered = false
 	b.contentHeight = 0
 	b.contentWidth = 0
-	b.width = 0
-	b.height = 0
 	b.preView = ""
 	b.rendered = false
 	b.view = ""
@@ -615,12 +621,6 @@ func WithModel(v tea.Model) func(*ChocolateBar) {
 	}
 }
 
-func WithBarFlavor(v Flavour) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
-		b.flavour = v
-	}
-}
-
 func WithSelectable() func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
 		b.selectable = true
@@ -632,7 +632,6 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 		id:            uuid.NewString(),
 		bars:          bars,
 		layoutType:    LIST,
-		flavour:       NewFlavour(),
 		preRendered:   false,
 		preView:       "",
 		rendered:      false,
@@ -643,7 +642,6 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 		contentHeight: 0,
 		hidden:        false,
 		selectable:    false,
-		focus:         false,
 	}
 	ret.X = NewParentScaler(1)
 	ret.Y = NewParentScaler(1)

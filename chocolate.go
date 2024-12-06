@@ -8,26 +8,58 @@ import (
 )
 
 type selector struct {
+	barMap      map[string]*ChocolateBar
 	selectables []string
-	selected    int
+	selectedIdx int
+	selected    *ChocolateBar
+	focused     *ChocolateBar
 }
 
-func (s *selector) Next() {
-	s.selected++
-	if s.selected >= len(s.selectables) {
-		s.selected = 0
+func (s *selector) next() {
+	s.selectedIdx++
+	if s.selectedIdx >= len(s.selectables) {
+		s.selectedIdx = 0
 	}
+	s.selected = s.getByID(s.selectables[s.selectedIdx])
 }
 
-func (s *selector) Prev() {
-	s.selected--
-	if s.selected < 0 {
-		s.selected = len(s.selectables) - 1
+func (s *selector) prev() {
+	s.selectedIdx--
+	if s.selectedIdx < 0 {
+		s.selectedIdx = len(s.selectables) - 1
 	}
+	s.selected = s.getByID(s.selectables[s.selectedIdx])
 }
 
-func (s selector) Get() string {
-	return s.selectables[s.selected]
+func (s selector) getByID(v string) *ChocolateBar {
+	if b, ok := s.barMap[v]; ok {
+		return b
+	}
+	return nil
+}
+
+func (s selector) hasFocus(v *ChocolateBar) bool {
+	return s.focused == v
+}
+
+func (s selector) isSelected(v *ChocolateBar) bool {
+	return s.selected == v
+}
+
+func (s selector) getSelected() *ChocolateBar {
+	return s.selected
+}
+
+func (s selector) getFocused() *ChocolateBar {
+	return s.focused
+}
+
+func (s *selector) focus() {
+	s.focused = s.selected
+}
+
+func (s *selector) unfocus() {
+	s.focused = nil
 }
 
 type Chocolate struct {
@@ -37,12 +69,10 @@ type Chocolate struct {
 	// root bar
 	bar *ChocolateBar
 
-	// bar selector
-	activeBar  *selector
-	inputFocus bool
-
-	// bar map for easy access
-	bars map[string]*ChocolateBar
+	// bar selector used for easy access
+	// and tracking of input focus and
+	// selecting
+	barctl *selector
 
 	// theme
 	flavour Flavour
@@ -66,12 +96,10 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		c.handleResize(msg)
 		return c, nil
 	case tea.KeyMsg:
-		if c.inputFocus {
+		if b := c.GetFocused(); b != nil {
 			if key.Matches(msg, c.KeyMap.Release) {
-				c.inputFocus = false
-				c.focusBar(false)
-			}
-			if b := c.getFocusedBar(); b != nil {
+				c.barctl.unfocus()
+			} else {
 				cmds = append(cmds, b.HandleUpdate(msg))
 			}
 		} else {
@@ -91,12 +119,11 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, c.KeyMap.Quit):
 			return tea.Quit
 		case key.Matches(msg, c.KeyMap.NextBar):
-			c.next()
+			c.barctl.next()
 		case key.Matches(msg, c.KeyMap.PrevBar):
-			c.prev()
+			c.barctl.prev()
 		case key.Matches(msg, c.KeyMap.Focus):
-			c.inputFocus = true
-			c.focusBar(true)
+			c.barctl.focus()
 		}
 	}
 
@@ -104,41 +131,27 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 }
 
 func (c Chocolate) GetBarByID(v string) *ChocolateBar {
-	if b, ok := c.bars[v]; ok {
-		return b
-	}
-	return nil
+	return c.barctl.getByID(v)
 }
 
-func (c Chocolate) getFocusedBar() *ChocolateBar {
-	if b, ok := c.bars[c.activeBar.Get()]; ok {
-		return b
-	}
-	return nil
+func (c Chocolate) GetFocused() *ChocolateBar {
+	return c.barctl.focused
 }
 
-func (c *Chocolate) selectBar(v bool) {
-	if b, ok := c.bars[c.activeBar.Get()]; ok {
-		b.Select(v)
-	}
+func (c Chocolate) GetSelected() *ChocolateBar {
+	return c.barctl.selected
 }
 
-func (c *Chocolate) focusBar(v bool) {
-	if b, ok := c.bars[c.activeBar.Get()]; ok {
-		b.Focus(v)
-	}
+func (c Chocolate) IsSelected(v *ChocolateBar) bool {
+	return c.barctl.isSelected(v)
 }
 
-func (c *Chocolate) next() {
-	c.selectBar(false)
-	c.activeBar.Next()
-	c.selectBar(true)
+func (c Chocolate) IsFocused(v *ChocolateBar) bool {
+	return c.barctl.hasFocus(v)
 }
 
-func (c *Chocolate) prev() {
-	c.selectBar(false)
-	c.activeBar.Prev()
-	c.selectBar(true)
+func (c Chocolate) GetFlavour() Flavour {
+	return c.flavour
 }
 
 func (c Chocolate) View() string {
@@ -169,10 +182,17 @@ func buildDefaultSelector(v *ChocolateBar) *selector {
 		selectables = append(selectables, v.id)
 	}
 
-	ret := &selector{
-		selectables: selectables,
-		selected:    0,
+	barMap, err := initBarMap(v)
+	if err != nil {
+		return nil
 	}
+
+	ret := &selector{
+		barMap:      barMap,
+		selectables: selectables,
+		selectedIdx: -1,
+	}
+	ret.next()
 
 	return ret
 }
@@ -201,6 +221,20 @@ func initBarMap(v *ChocolateBar) (map[string]*ChocolateBar, error) {
 	return ret, nil
 }
 
+func (c *Chocolate) initBar(v *ChocolateBar) error {
+	if v == nil || !v.IsRoot() {
+		return fmt.Errorf("Not a root bar")
+	}
+
+	// set the chocolate
+	v.SetChocolate(c)
+
+	// add the var to the chocolate
+	c.bar = v
+
+	return nil
+}
+
 type chocolateOptions func(*Chocolate)
 
 func WithFlavor(v Flavour) func(*Chocolate) {
@@ -212,41 +246,36 @@ func WithFlavor(v Flavour) func(*Chocolate) {
 func WithSelector(v []string, s int) func(*Chocolate) {
 	return func(c *Chocolate) {
 		if len(v) == 0 {
-			c.activeBar = nil
+			return
 		}
-		c.activeBar = &selector{
-			selectables: v,
-			selected:    s,
+		if s < 0 || s >= len(v) {
+			s = 0
 		}
+
+		c.barctl.selectables = v
+		c.barctl.selectedIdx = s - 1
+		c.barctl.next()
 	}
 }
 
 func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) *Chocolate {
 	ret := &Chocolate{
-		KeyMap:     DefaultKeyMap(),
-		flavour:    NewFlavour(),
-		bar:        bar,
-		inputFocus: false,
+		KeyMap:  DefaultKeyMap(),
+		flavour: NewFlavour(),
 	}
 
-	if bar == nil {
+	// bar initializing
+	if err := ret.initBar(bar); err != nil {
 		// TODO: error handling
 		return nil
 	}
-
-	var err error
-	if ret.bars, err = initBarMap(bar); err != nil {
-		// TODO error handling
+	if ret.barctl = buildDefaultSelector(bar); ret.barctl == nil {
+		// TODO: error handling
 		return nil
 	}
 
 	for _, opt := range opts {
 		opt(ret)
-	}
-
-	if ret.activeBar == nil {
-		ret.activeBar = buildDefaultSelector(bar)
-		ret.selectBar(true)
 	}
 
 	return ret
