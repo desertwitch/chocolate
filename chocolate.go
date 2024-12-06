@@ -55,11 +55,18 @@ func (s selector) getFocused() *ChocolateBar {
 }
 
 func (s *selector) focus() {
-	s.focused = s.selected
+	if s.selected.CanFocus() {
+		s.focused = s.selected
+	}
 }
 
 func (s *selector) unfocus() {
 	s.focused = nil
+}
+
+func (s *selector) forceSelect(v *ChocolateBar) {
+	s.selected = v
+	s.focused = v
 }
 
 type Chocolate struct {
@@ -76,6 +83,18 @@ type Chocolate struct {
 
 	// theme
 	flavour Flavour
+
+	// autofocus is used to tell the Chocolate
+	// to directly hand over input focus to the
+	// selected bar
+	// This is usefull for something like a menu
+	// which has focus on start and will load other
+	// models on selection and changes selected
+	// When autofocus is enabled the default leave
+	// keyMap will be disabled and the handling
+	// of selecting, focusing, etc. will be handed
+	// over to the bar and it's models
+	autofocus bool
 }
 
 func (c *Chocolate) handleResize(size tea.WindowSizeMsg) {
@@ -97,7 +116,7 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return c, nil
 	case tea.KeyMsg:
 		if b := c.GetFocused(); b != nil {
-			if key.Matches(msg, c.KeyMap.Release) {
+			if key.Matches(msg, c.KeyMap.Release) && !c.autofocus {
 				c.barctl.unfocus()
 			} else {
 				cmds = append(cmds, b.HandleUpdate(msg))
@@ -148,6 +167,13 @@ func (c Chocolate) IsSelected(v *ChocolateBar) bool {
 
 func (c Chocolate) IsFocused(v *ChocolateBar) bool {
 	return c.barctl.hasFocus(v)
+}
+
+func (c *Chocolate) ForceSelect(v *ChocolateBar) {
+	if !c.autofocus {
+		return
+	}
+	c.barctl.forceSelect(v)
 }
 
 func (c Chocolate) GetFlavour() Flavour {
@@ -258,10 +284,18 @@ func WithSelector(v []string, s int) func(*Chocolate) {
 	}
 }
 
+func WithAutofocus(v *ChocolateBar) func(*Chocolate) {
+	return func(c *Chocolate) {
+		c.autofocus = true
+		c.ForceSelect(v)
+	}
+}
+
 func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
 	ret := &Chocolate{
-		KeyMap:  DefaultKeyMap(),
-		flavour: NewFlavour(),
+		KeyMap:    DefaultKeyMap(),
+		flavour:   NewFlavour(),
+		autofocus: false,
 	}
 
 	// bar initializing

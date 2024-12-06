@@ -26,11 +26,6 @@ const (
 	FIXED
 )
 
-type scaling struct {
-	t ScalingType
-	v int
-}
-
 type Scaler interface {
 	Get() (ScalingType, int)
 	GetValue() int
@@ -149,7 +144,14 @@ type ChocolateBar struct {
 	// flavourPrefs generation function
 	// this can be used to override the default
 	// flavour preferences
-	FlavourPrefsFct func() FlavourPrefs
+	FlavourPrefsHandlerFct func() func() FlavourPrefs
+
+	// custom update function
+	// this can be used to override the default
+	// behavior which will only let the bar
+	// take input focus when a model is attached
+	// and just pass the tea messages through
+	UpdateHandlerFct func() func(tea.Msg) tea.Cmd
 
 	// if the bar is hidden
 	// hidden bars are removed from the layout
@@ -169,10 +171,10 @@ func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 	if b.choc == nil {
 		log.Printf("%s no choc??\n", b.id)
 	} else {
-		if b.choc.IsSelected(b) {
+		if b.choc.IsSelected(b) && !b.IsRoot() {
 			ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
 		}
-		if b.choc.IsFocused(b) {
+		if b.choc.IsFocused(b) && !b.IsRoot() {
 			ret = ret.Foreground(FOREGROUND_HIGHLIGHT_PRIMARY)
 			ret = ret.Background(BACKGROUND_HIGHLIGHT_PRIMARY)
 			ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
@@ -183,7 +185,10 @@ func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 }
 
 func (b *ChocolateBar) GetStyle() lipgloss.Style {
-	return b.choc.GetFlavour().GetStyle(b.FlavourPrefsFct())
+	if b.FlavourPrefsHandlerFct == nil {
+		return b.choc.GetFlavour().GetStyle(b.defaultFlavourPrefs())
+	}
+	return b.choc.GetFlavour().GetStyle(b.FlavourPrefsHandlerFct()())
 }
 
 func (b ChocolateBar) IsRoot() bool {
@@ -203,6 +208,16 @@ func (b *ChocolateBar) SetChocolate(v *Chocolate) {
 	} else {
 		b.parent.SetChocolate(v)
 	}
+}
+
+func (b ChocolateBar) CanFocus() bool {
+	if b.UpdateHandlerFct != nil {
+		return true
+	}
+	if b.model != nil {
+		return true
+	}
+	return false
 }
 
 func (b *ChocolateBar) Resize(w, h int) {
@@ -580,7 +595,7 @@ func (b *ChocolateBar) Hide(v bool) {
 	b.hidden = v
 }
 
-func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
+func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -589,6 +604,13 @@ func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 	return tea.Batch(cmds...)
+}
+
+func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
+	if b.UpdateHandlerFct == nil {
+		return b.defaultUpdateHandler(msg)
+	}
+	return b.UpdateHandlerFct()(msg)
 }
 
 type chocolateBarOptions func(*ChocolateBar)
@@ -640,8 +662,6 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 	for _, c := range bars {
 		c.parent = ret
 	}
-
-	ret.FlavourPrefsFct = ret.defaultFlavourPrefs
 
 	for _, opt := range opts {
 		opt(ret)
