@@ -154,6 +154,8 @@ type ChocolateBar struct {
 	// if this bar can be selected
 	selectable bool
 
+	// if this bar is selected
+	selected bool
 	// if this bar has input focus
 	focus bool
 }
@@ -163,8 +165,14 @@ func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 	if len(b.bars) == 0 {
 		ret = ret.BorderType(b.flavour.GetBorderType())
 	}
-	if b.focus {
+	if b.selected {
 		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+	}
+	if b.focus {
+		ret = ret.Foreground(FOREGROUND_HIGHLIGHT_PRIMARY)
+		ret = ret.Background(BACKGROUND_HIGHLIGHT_PRIMARY)
+		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+		// ret = ret.BackgroundBorder(BACKGROUND_HIGHLIGHT_PRIMARY)
 	}
 
 	return ret
@@ -175,6 +183,10 @@ func (b ChocolateBar) GetStyle() lipgloss.Style {
 }
 
 func (b *ChocolateBar) Select(v bool) {
+	b.selected = v
+}
+
+func (b *ChocolateBar) Focus(v bool) {
 	b.focus = v
 }
 
@@ -386,8 +398,8 @@ func (b *ChocolateBar) recalcHorizontalSizes() {
 			}
 		}
 	}
-	b.width = b.contentWidth
 
+	b.width = b.contentWidth
 	if b.width > b.maxWidth {
 		// TODO: error handling
 		return
@@ -414,17 +426,17 @@ func (b *ChocolateBar) finalizeSizing() {
 	if b.parent != nil {
 		width = b.parent.width
 		height = b.parent.height
-		if width == 0 {
+		if width <= 0 {
 			width = b.parent.maxWidth
 		}
-		if height == 0 {
+		if height <= 0 {
 			height = b.parent.maxHeight
 		}
 	}
-	if b.width == 0 {
+	if b.width <= 0 {
 		b.width = width - b.GetStyle().GetHorizontalFrameSize()
 	}
-	if b.height == 0 {
+	if b.height <= 0 {
 		b.height = height - b.GetStyle().GetVerticalFrameSize()
 	}
 
@@ -465,19 +477,41 @@ func (b *ChocolateBar) joinBars() {
 
 	var bars []string
 	if !b.rendered {
-		s := b.GetStyle()
-		switch b.layoutType {
-		case LIST:
-			s = s.Width(b.width)
-		case LINEAR:
-			s = s.Height(b.height)
-		}
+		b.rendered = true
 		for _, c := range b.bars {
 			c.joinBars()
 			if c.hidden {
 				continue
 			}
-			bars = append(bars, s.Render(c.view))
+			w, h := lipgloss.Size(c.view)
+			switch b.layoutType {
+			case LIST:
+				if w < b.width {
+					s := b.GetStyle().
+						BorderTop(false).
+						BorderBottom(false).
+						BorderLeft(false).
+						BorderRight(false).
+						Width(b.width + b.GetStyle().GetHorizontalFrameSize())
+					bars = append(bars, s.Render(c.view))
+				} else {
+					bars = append(bars, c.view)
+				}
+			case LINEAR:
+				if h < b.height {
+					s := b.GetStyle().
+						BorderTop(false).
+						BorderBottom(false).
+						BorderLeft(false).
+						BorderRight(false).
+						Height(b.height - b.GetStyle().GetVerticalFrameSize())
+					bars = append(bars, s.Render(c.view))
+				} else {
+					bars = append(bars, c.view)
+				}
+			default:
+				bars = append(bars, c.view)
+			}
 		}
 		switch b.layoutType {
 		case LIST:
@@ -487,7 +521,6 @@ func (b *ChocolateBar) joinBars() {
 			b.view = b.GetStyle().
 				Render(lipgloss.JoinHorizontal(0, bars...))
 		}
-		b.rendered = true
 	}
 }
 

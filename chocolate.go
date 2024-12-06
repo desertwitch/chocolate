@@ -69,6 +69,7 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if c.inputFocus {
 			if key.Matches(msg, c.KeyMap.Release) {
 				c.inputFocus = false
+				c.focusBar(false)
 			}
 			if b := c.getFocusedBar(); b != nil {
 				cmds = append(cmds, b.HandleUpdate(msg))
@@ -95,10 +96,18 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 			c.prev()
 		case key.Matches(msg, c.KeyMap.Focus):
 			c.inputFocus = true
+			c.focusBar(true)
 		}
 	}
 
 	return tea.Batch(cmds...)
+}
+
+func (c Chocolate) GetBarByID(v string) *ChocolateBar {
+	if b, ok := c.bars[v]; ok {
+		return b
+	}
+	return nil
 }
 
 func (c Chocolate) getFocusedBar() *ChocolateBar {
@@ -111,6 +120,12 @@ func (c Chocolate) getFocusedBar() *ChocolateBar {
 func (c *Chocolate) selectBar(v bool) {
 	if b, ok := c.bars[c.activeBar.Get()]; ok {
 		b.Select(v)
+	}
+}
+
+func (c *Chocolate) focusBar(v bool) {
+	if b, ok := c.bars[c.activeBar.Get()]; ok {
+		b.Focus(v)
 	}
 }
 

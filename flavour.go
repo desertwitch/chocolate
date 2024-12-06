@@ -90,8 +90,8 @@ func NewFlavourPrefs() FlavourPrefs {
 		foregroundBorder:    FOREGROUND_PRIMARY,
 		backgroundBorder:    BACKGROUND_PRIMARY,
 		borderType:          NONE,
-		horizontalAlignment: NO,
-		verticalAlignment:   NO,
+		horizontalAlignment: CENTER,
+		verticalAlignment:   CENTER,
 	}
 
 	return ret
