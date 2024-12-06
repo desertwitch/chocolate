@@ -109,30 +109,26 @@ var menuBarFlavourPrefsHandler = func(b *chocolate.ChocolateBar) func() chocolat
 	}
 }
 
-var menuBarUpdateHandler = func(b *chocolate.ChocolateBar) func(tea.Msg) tea.Cmd {
+var menuBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
 		switch msg := msg.(type) {
 		case MainChangeMsg:
-			bar := b.GetChoc().GetBarByID(string(msg))
-			if bar == nil {
-				return nil
-			}
-			b.GetChoc().GetBarByID("maindummy").Hide(true)
-			bar.Hide(false)
+			model := string(msg)
+			bar := b.GetChoc().GetBarByID("main")
+			bar.SelectModel(model)
 			b.GetChoc().ForceSelect(bar)
 		}
 		return nil
 	}
 }
 
-var mainBarUpdateHandler = func(b *chocolate.ChocolateBar) func(tea.Msg) tea.Cmd {
+var mainBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "q", "esc":
-				b.Hide(true)
-				b.GetChoc().GetBarByID("maindummy").Hide(false)
+				b.SelectModel("dummy")
 				b.GetChoc().ForceSelect(b.GetChoc().GetBarByID("menu"))
 			}
 		}
@@ -141,47 +137,32 @@ var mainBarUpdateHandler = func(b *chocolate.ChocolateBar) func(tea.Msg) tea.Cmd
 }
 
 func main() {
+	mainDummy := mainModel("")
 	mainFirst := mainModel("first")
 	mainSecond := mainModel("second")
-	mainFirstBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(mainFirst),
-		chocolate.WithID("mainFirst"),
-		chocolate.WithUpdateHandle(mainBarUpdateHandler),
-		chocolate.Hidden(),
-	)
-	mainSecondBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(mainSecond),
-		chocolate.WithID("mainSecond"),
-		chocolate.WithUpdateHandle(mainBarUpdateHandler),
-		chocolate.Hidden(),
-	)
 
-	mainDummyBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(mainModel("")),
-		chocolate.WithID("maindummy"),
-	)
+	mainModels := make(map[string]*chocolate.BarModel)
+	mainModels["dummy"] = &chocolate.BarModel{Model: mainDummy, UpdateHandlerFct: mainBarUpdateHandler}
+	mainModels["first"] = &chocolate.BarModel{Model: mainFirst, UpdateHandlerFct: mainBarUpdateHandler}
+	mainModels["second"] = &chocolate.BarModel{Model: mainSecond, UpdateHandlerFct: mainBarUpdateHandler}
 
-	mainContentBar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
-		mainDummyBar,
-		mainFirstBar,
-		mainSecondBar,
-	},
+	mainContentBar := chocolate.NewChocolateBar(nil,
 		chocolate.WithID("main"),
+		chocolate.WithModels(mainModels, "dummy"),
 	)
 
 	menuModel := NewMenuModel("Main Menu",
 		[]list.Item{
-			NewMenuModel("First", nil, "mainFirst", flavour),
-			NewMenuModel("Second", nil, "mainSecond", flavour),
+			NewMenuModel("First", nil, "first", flavour),
+			NewMenuModel("Second", nil, "second", flavour),
 		},
 		"",
 		flavour,
 	)
 
 	menuBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(menuModel),
+		chocolate.WithModel(&chocolate.BarModel{Model: menuModel, UpdateHandlerFct: menuBarUpdateHandler}),
 		chocolate.WithID("menu"),
-		chocolate.WithUpdateHandle(menuBarUpdateHandler),
 		chocolate.WithFlavourPrefsHandle(menuBarFlavourPrefsHandler),
 		chocolate.WithXScaler(chocolate.NewFixedScaler(20)),
 	)

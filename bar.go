@@ -84,6 +84,15 @@ type Scaling struct {
 	Y Scaler
 }
 
+type ChangeModelMsg string
+
+type BarUpdateHandlerFct func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+
+type BarModel struct {
+	Model            tea.Model
+	UpdateHandlerFct BarUpdateHandlerFct
+}
+
 type ChocolateBar struct {
 	Scaling
 	id string
@@ -124,7 +133,13 @@ type ChocolateBar struct {
 	// model of the entry this can only be set, if
 	// there are no sub bars and is the final leaf
 	// of the whole tree and provides the real content
-	model tea.Model
+	// model tea.Model
+
+	// models map so that the bar can have multiple
+	// models to select from
+	models map[string]*BarModel
+	// running actModel
+	actModel *BarModel
 
 	// pre rendered view with maximum content sizes
 	// this is used to get the correct sizes of the
@@ -149,7 +164,7 @@ type ChocolateBar struct {
 	// behavior which will only let the bar
 	// take input focus when a model is attached
 	// and just pass the tea messages through
-	UpdateHandlerFct func(*ChocolateBar) func(tea.Msg) tea.Cmd
+	// UpdateHandlerFct func(*ChocolateBar) func(tea.Msg) tea.Cmd
 
 	// if the bar is hidden
 	// hidden bars are removed from the layout
@@ -163,7 +178,7 @@ type ChocolateBar struct {
 
 func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 	ret := NewFlavourPrefs()
-	if b.model != nil || b.IsRoot() {
+	if b.actModel != nil || b.IsRoot() {
 		ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
 	}
 	if b.GetChoc().IsSelected(b) && !b.IsRoot() {
@@ -205,13 +220,7 @@ func (b *ChocolateBar) SetChocolate(v *Chocolate) {
 }
 
 func (b ChocolateBar) CanFocus() bool {
-	if b.UpdateHandlerFct != nil {
-		return true
-	}
-	if b.model != nil {
-		return true
-	}
-	return false
+	return b.actModel != nil
 }
 
 func (b ChocolateBar) GetChoc() *Chocolate {
@@ -219,11 +228,20 @@ func (b ChocolateBar) GetChoc() *Chocolate {
 }
 
 func (b ChocolateBar) GetModel() tea.Model {
-	return b.model
+	return b.actModel.Model
 }
 
 func (b ChocolateBar) GetID() string {
 	return b.id
+}
+
+func (b *ChocolateBar) SelectModel(v string) {
+	if b.models == nil {
+		return
+	}
+	if m, ok := b.models[v]; ok {
+		b.actModel = m
+	}
 }
 
 func (b *ChocolateBar) Resize(w, h int) {
@@ -251,8 +269,8 @@ func (b *ChocolateBar) Resize(w, h int) {
 		b.height = height
 	}
 
-	if b.model != nil {
-		b.model, _ = b.model.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	if b.actModel != nil {
+		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	} else {
 		for _, c := range b.bars {
 			c.Resize(width, height)
@@ -271,9 +289,9 @@ func (b *ChocolateBar) preRender() {
 		return
 	}
 
-	if b.model != nil {
+	if b.actModel != nil {
 		if !b.preRendered {
-			b.preView = b.model.View()
+			b.preView = b.actModel.Model.View()
 			b.contentWidth, b.contentHeight = lipgloss.Size(b.preView)
 
 			b.preRendered = true
@@ -464,8 +482,8 @@ func (b *ChocolateBar) finalizeSizing() {
 		}
 
 	}
-	if b.model != nil {
-		b.model, _ = b.model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
+	if b.actModel != nil {
+		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
 	}
 }
 
@@ -479,11 +497,11 @@ func (b *ChocolateBar) render() {
 		return
 	}
 
-	if b.model != nil {
+	if b.actModel != nil {
 		b.view = b.GetStyle().
 			Width(b.width).
 			Height(b.height).
-			Render(b.model.View())
+			Render(b.actModel.Model.View())
 		b.rendered = true
 		return
 	}
@@ -604,8 +622,15 @@ func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	if b.model != nil {
-		b.model, cmd = b.model.Update(msg)
+	switch msg := msg.(type) {
+	case ChangeModelMsg:
+		model := string(msg)
+		b.SelectModel(model)
+		return nil
+	}
+
+	if b.actModel != nil {
+		b.actModel.Model, cmd = b.actModel.Model.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 	return tea.Batch(cmds...)
@@ -615,8 +640,8 @@ func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	cmds = append(cmds, b.defaultUpdateHandler(msg))
-	if b.UpdateHandlerFct != nil {
-		cmds = append(cmds, b.UpdateHandlerFct(b)(msg))
+	if b.actModel.UpdateHandlerFct != nil {
+		cmds = append(cmds, b.actModel.UpdateHandlerFct(b, b.actModel.Model)(msg))
 	}
 	return tea.Batch(cmds...)
 }
@@ -635,9 +660,17 @@ func WithID(v string) func(*ChocolateBar) {
 	}
 }
 
-func WithModel(v tea.Model) func(*ChocolateBar) {
+func WithModels(v map[string]*BarModel, a string) func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
-		b.model = v
+		b.models = v
+		b.actModel = v[a]
+		b.bars = nil
+	}
+}
+
+func WithModel(v *BarModel) func(*ChocolateBar) {
+	return func(b *ChocolateBar) {
+		b.actModel = v
 		b.bars = nil
 	}
 }
@@ -645,12 +678,6 @@ func WithModel(v tea.Model) func(*ChocolateBar) {
 func WithSelectable() func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
 		b.selectable = true
-	}
-}
-
-func WithUpdateHandle(v func(*ChocolateBar) func(tea.Msg) tea.Cmd) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
-		b.UpdateHandlerFct = v
 	}
 }
 
