@@ -110,12 +110,17 @@ func (c Chocolate) Init() tea.Cmd {
 func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	b := c.GetFocused()
+	if b != nil {
+		cmds = append(cmds, b.HandleUpdate(msg))
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.handleResize(msg)
 		return c, nil
 	case tea.KeyMsg:
-		if b := c.GetFocused(); b != nil {
+		if b != nil {
 			if key.Matches(msg, c.KeyMap.Release) && !c.autofocus {
 				c.barctl.unfocus()
 			} else {
@@ -125,7 +130,7 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, c.handleNavigation(msg))
 		}
 	default:
-		if b := c.GetFocused(); b != nil {
+		if b != nil {
 			cmds = append(cmds, b.HandleUpdate(msg))
 		}
 	}

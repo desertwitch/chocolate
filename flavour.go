@@ -46,6 +46,10 @@ type FlavourPrefs struct {
 	borderType          BorderType
 	horizontalAlignment Alignment
 	verticalAlignment   Alignment
+	marginTop           int
+	marginBottom        int
+	marginLeft          int
+	marginRight         int
 }
 
 func (p FlavourPrefs) Foreground(v ColorType) FlavourPrefs {
@@ -83,6 +87,38 @@ func (p FlavourPrefs) VerticalAlignment(v Alignment) FlavourPrefs {
 	return p
 }
 
+func (p FlavourPrefs) MarginTop(v int) FlavourPrefs {
+	if v < 0 {
+		v = 0
+	}
+	p.marginTop = v
+	return p
+}
+
+func (p FlavourPrefs) MarginBottom(v int) FlavourPrefs {
+	if v < 0 {
+		v = 0
+	}
+	p.marginBottom = v
+	return p
+}
+
+func (p FlavourPrefs) MarginLeft(v int) FlavourPrefs {
+	if v < 0 {
+		v = 0
+	}
+	p.marginLeft = v
+	return p
+}
+
+func (p FlavourPrefs) MarginRight(v int) FlavourPrefs {
+	if v < 0 {
+		v = 0
+	}
+	p.marginRight = v
+	return p
+}
+
 func NewFlavourPrefs() FlavourPrefs {
 	ret := FlavourPrefs{
 		foreground:          FOREGROUND_PRIMARY,
@@ -92,6 +128,10 @@ func NewFlavourPrefs() FlavourPrefs {
 		borderType:          NONE,
 		horizontalAlignment: CENTER,
 		verticalAlignment:   CENTER,
+		marginTop:           0,
+		marginBottom:        0,
+		marginLeft:          0,
+		marginRight:         0,
 	}
 
 	return ret
@@ -194,6 +234,12 @@ func (f *flavour) GetStyle(v FlavourPrefs) lipgloss.Style {
 	s = s.Background(f.GetColor(v.background))
 	s = s.BorderForeground(f.GetColor(v.foregroundBorder))
 	s = s.BorderBackground(f.GetColor(v.backgroundBorder))
+	s = s.MarginBackground(f.GetColor(v.backgroundBorder))
+
+	s = s.MarginTop(v.marginTop)
+	s = s.MarginBottom(v.marginBottom)
+	s = s.MarginLeft(v.marginLeft)
+	s = s.MarginRight(v.marginRight)
 
 	return s
 }

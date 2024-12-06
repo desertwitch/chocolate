@@ -23,14 +23,17 @@ func (d menuItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 	}
 
 	fp := chocolate.NewFlavourPrefs()
-	s := i.flavour.GetStyle(fp)
+	s := i.flavour.GetStyle(fp).
+		Width(i.width)
 	fn := s.Render
 
 	if index == m.Index() {
 		fn = i.flavour.GetStyle(fp.
 			Foreground(chocolate.FOREGROUND_HIGHLIGHT_PRIMARY).
 			Background(chocolate.BACKGROUND_HIGHLIGHT_PRIMARY),
-		).Render
+		).
+			Width(i.width).
+			Render
 	}
 
 	fmt.Fprint(w, fn(i.name))
@@ -43,17 +46,21 @@ type menuModel struct {
 	name    string
 	dst     string
 	flavour chocolate.Flavour
+	width   int
 }
 
-func (m menuModel) Init() tea.Cmd {
-	return nil
-}
+func (m menuModel) Init() tea.Cmd { return nil }
 
 func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
 		m.items.SetWidth(msg.Width)
 		m.items.SetHeight(msg.Height)
+		for _, i := range m.items.Items() {
+			ie := i.(*menuModel)
+			ie.Update(msg)
+		}
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -103,15 +110,20 @@ func (t mainModel) View() string                            { return string(t) }
 
 var flavour = chocolate.NewFlavour()
 
-var menuBarFlavourPrefsHandler = func(b *chocolate.ChocolateBar) func() chocolate.FlavourPrefs {
+var menuBarFlavourPrefsHandler = func(b *chocolate.ChocolateBar, m tea.Model, p chocolate.FlavourPrefs) func() chocolate.FlavourPrefs {
 	return func() chocolate.FlavourPrefs {
-		return chocolate.NewFlavourPrefs()
+		return chocolate.NewFlavourPrefs().
+			MarginTop(1).
+			MarginRight(3).
+			MarginLeft(3)
 	}
 }
 
 var menuBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
 		switch msg := msg.(type) {
+		case tea.WindowSizeMsg:
+			m.(*menuModel).width = msg.Width
 		case MainChangeMsg:
 			model := string(msg)
 			bar := b.GetChoc().GetBarByID("main")
@@ -161,9 +173,8 @@ func main() {
 	)
 
 	menuBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{Model: menuModel, UpdateHandlerFct: menuBarUpdateHandler}),
+		chocolate.WithModel(&chocolate.BarModel{Model: menuModel, UpdateHandlerFct: menuBarUpdateHandler, FlavourPrefsHandlerFct: menuBarFlavourPrefsHandler}),
 		chocolate.WithID("menu"),
-		chocolate.WithFlavourPrefsHandle(menuBarFlavourPrefsHandler),
 		chocolate.WithXScaler(chocolate.NewFixedScaler(20)),
 	)
 

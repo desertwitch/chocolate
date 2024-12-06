@@ -86,11 +86,15 @@ type Scaling struct {
 
 type ChangeModelMsg string
 
-type BarUpdateHandlerFct func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+type (
+	BarUpdateHandlerFct       func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+	BarFlavourPrefsHandlerFct func(*ChocolateBar, tea.Model, FlavourPrefs) func() FlavourPrefs
+)
 
 type BarModel struct {
-	Model            tea.Model
-	UpdateHandlerFct BarUpdateHandlerFct
+	Model                  tea.Model
+	UpdateHandlerFct       BarUpdateHandlerFct
+	FlavourPrefsHandlerFct BarFlavourPrefsHandlerFct
 }
 
 type ChocolateBar struct {
@@ -157,7 +161,7 @@ type ChocolateBar struct {
 	// flavourPrefs generation function
 	// this can be used to override the default
 	// flavour preferences
-	FlavourPrefsHandlerFct func(*ChocolateBar) func() FlavourPrefs
+	// FlavourPrefsHandlerFct func(*ChocolateBar) func() FlavourPrefs
 
 	// custom update function
 	// this can be used to override the default
@@ -190,14 +194,15 @@ func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
 		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
 	}
 
+	if b.actModel != nil && b.actModel.FlavourPrefsHandlerFct != nil {
+		ret = b.actModel.FlavourPrefsHandlerFct(b, b.actModel.Model, ret)()
+	}
+
 	return ret
 }
 
 func (b *ChocolateBar) GetStyle() lipgloss.Style {
-	if b.FlavourPrefsHandlerFct == nil {
-		return b.GetChoc().GetFlavour().GetStyle(b.defaultFlavourPrefs())
-	}
-	return b.GetChoc().GetFlavour().GetStyle(b.FlavourPrefsHandlerFct(b)())
+	return b.GetChoc().GetFlavour().GetStyle(b.defaultFlavourPrefs())
 }
 
 func (b ChocolateBar) IsRoot() bool {
@@ -255,9 +260,11 @@ func (b *ChocolateBar) Resize(w, h int) {
 	// to calculate anything
 	if b.X.IsFixed() {
 		width = b.X.GetValue()
+		// b.width = width
 	}
 	if b.Y.IsFixed() {
-		height = b.X.GetValue()
+		height = b.Y.GetValue()
+		// b.height = height
 	}
 
 	b.maxWidth = width
@@ -269,6 +276,11 @@ func (b *ChocolateBar) Resize(w, h int) {
 		b.height = height
 	}
 
+	if b.models != nil {
+		for _, m := range b.models {
+			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: width, Height: height})
+		}
+	}
 	if b.actModel != nil {
 		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	} else {
@@ -591,6 +603,12 @@ func (b *ChocolateBar) resetRender() {
 		b.width = 0
 		b.height = 0
 	}
+	//  if !b.IsRoot() || !b.X.IsFixed() {
+	// 	b.width = 0
+	// }
+	// if !b.IsRoot() || !b.Y.IsFixed() {
+	// 	b.height = 0
+	// }
 	b.preRendered = false
 	b.contentHeight = 0
 	b.contentWidth = 0
@@ -626,7 +644,6 @@ func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	case ChangeModelMsg:
 		model := string(msg)
 		b.SelectModel(model)
-		return nil
 	}
 
 	if b.actModel != nil {
@@ -678,12 +695,6 @@ func WithModel(v *BarModel) func(*ChocolateBar) {
 func WithSelectable() func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
 		b.selectable = true
-	}
-}
-
-func WithFlavourPrefsHandle(v func(*ChocolateBar) func() FlavourPrefs) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
-		b.FlavourPrefsHandlerFct = v
 	}
 }
 
