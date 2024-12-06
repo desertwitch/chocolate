@@ -124,6 +124,10 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			cmds = append(cmds, c.handleNavigation(msg))
 		}
+	default:
+		if b := c.GetFocused(); b != nil {
+			cmds = append(cmds, b.HandleUpdate(msg))
+		}
 	}
 
 	return c, tea.Batch(cmds...)
