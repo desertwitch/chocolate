@@ -221,11 +221,6 @@ func (b *ChocolateBar) Resize(w, h int) {
 		height = b.X.GetValue()
 	}
 
-	if width <= 0 || height <= 0 {
-		// TODO: error handling
-		return
-	}
-
 	b.maxWidth = width
 	b.maxHeight = height
 
@@ -260,10 +255,6 @@ func (b *ChocolateBar) preRender() {
 			b.preView = b.model.View()
 			b.contentWidth, b.contentHeight = lipgloss.Size(b.preView)
 
-			if b.contentWidth > b.maxWidth || b.contentHeight > b.maxHeight {
-				// TODO: error handling
-				return
-			}
 			b.preRendered = true
 
 			if !b.IsRoot() {
@@ -375,13 +366,9 @@ func (b *ChocolateBar) recalcVerticalSizes() {
 
 	if !b.IsRoot() {
 		b.height = b.contentHeight
-		if b.height > b.maxHeight {
-			// TODO: error handling
-			return
-		}
-
 		b.parent.contentHeight += b.height
 	}
+
 	b.preRendered = true
 }
 
@@ -423,12 +410,9 @@ func (b *ChocolateBar) recalcHorizontalSizes() {
 
 	if !b.IsRoot() {
 		b.width = b.contentWidth
-		if b.width > b.maxWidth {
-			// TODO: error handling
-			return
-		}
 		b.parent.contentWidth += b.width
 	}
+
 	b.preRendered = true
 }
 
@@ -582,6 +566,13 @@ func (b *ChocolateBar) Render() string {
 	b.resetRender()
 	b.render()
 	b.joinBars()
+	w, h := lipgloss.Size(b.view)
+	w -= b.GetStyle().GetHorizontalFrameSize()
+	h -= b.GetStyle().GetVerticalFrameSize()
+	log.Printf("w, h %d, %d bw, bh %d %d\n", w, h, b.width, b.height)
+	if w > b.width || h > b.height {
+		return "Window too small"
+	}
 	return b.view
 }
 

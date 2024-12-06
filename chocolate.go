@@ -172,7 +172,7 @@ func getSelectables(v *ChocolateBar) []string {
 	return ret
 }
 
-func buildDefaultSelector(v *ChocolateBar) *selector {
+func buildDefaultSelector(v *ChocolateBar) (*selector, error) {
 	selectables := getSelectables(v)
 
 	if len(selectables) == 0 {
@@ -184,7 +184,7 @@ func buildDefaultSelector(v *ChocolateBar) *selector {
 
 	barMap, err := initBarMap(v)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	ret := &selector{
@@ -194,7 +194,7 @@ func buildDefaultSelector(v *ChocolateBar) *selector {
 	}
 	ret.next()
 
-	return ret
+	return ret, nil
 }
 
 func initBarMap(v *ChocolateBar) (map[string]*ChocolateBar, error) {
@@ -258,25 +258,24 @@ func WithSelector(v []string, s int) func(*Chocolate) {
 	}
 }
 
-func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) *Chocolate {
+func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
 	ret := &Chocolate{
 		KeyMap:  DefaultKeyMap(),
 		flavour: NewFlavour(),
 	}
 
 	// bar initializing
-	if err := ret.initBar(bar); err != nil {
-		// TODO: error handling
-		return nil
+	var err error
+	if err = ret.initBar(bar); err != nil {
+		return nil, err
 	}
-	if ret.barctl = buildDefaultSelector(bar); ret.barctl == nil {
-		// TODO: error handling
-		return nil
+	if ret.barctl, err = buildDefaultSelector(bar); err != nil {
+		return nil, err
 	}
 
 	for _, opt := range opts {
 		opt(ret)
 	}
 
-	return ret
+	return ret, nil
 }
