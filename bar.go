@@ -87,14 +87,15 @@ type Scaling struct {
 type ChangeModelMsg string
 
 type (
-	BarUpdateHandlerFct       func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
-	BarFlavourPrefsHandlerFct func(*ChocolateBar, tea.Model, FlavourPrefs) func() FlavourPrefs
+	ModelUpdateHandlerFct           func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+	ModelFlavourCustomizeHandlerFct func(*ChocolateBar, tea.Model, *Flavour, lipgloss.Style) func() lipgloss.Style
+	BarFlavourCustomizeHandlerFct   func(*ChocolateBar, *Flavour, lipgloss.Style) func() lipgloss.Style
 )
 
 type BarModel struct {
-	Model                  tea.Model
-	UpdateHandlerFct       BarUpdateHandlerFct
-	FlavourPrefsHandlerFct BarFlavourPrefsHandlerFct
+	Model                   tea.Model
+	UpdateHandlerFct        ModelUpdateHandlerFct
+	FlavourCustomizeHandler ModelFlavourCustomizeHandlerFct
 }
 
 type ChocolateBar struct {
@@ -161,7 +162,7 @@ type ChocolateBar struct {
 	// flavourPrefs generation function
 	// this can be used to override the default
 	// flavour preferences
-	// FlavourPrefsHandlerFct func(*ChocolateBar) func() FlavourPrefs
+	FlavourCustomzieHandler BarFlavourCustomizeHandlerFct
 
 	// custom update function
 	// this can be used to override the default
@@ -180,29 +181,27 @@ type ChocolateBar struct {
 	selectable bool
 }
 
-func (b *ChocolateBar) defaultFlavourPrefs() FlavourPrefs {
-	ret := NewFlavourPrefs()
+func (b *ChocolateBar) GetStyle() lipgloss.Style {
+	flavour := b.GetChoc().GetFlavour()
+	ret := flavour.GetPresetNoErr(PRESET_PRIMARY_NOBORDER)
+
 	if b.actModel != nil || b.IsRoot() {
-		ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
+		ret = flavour.GetPresetNoErr(PRESET_PRIMARY)
+		// ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
 	}
 	if b.GetChoc().IsSelected(b) && !b.IsRoot() {
-		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+		ret = ret.BorderForeground(flavour.GetFGColor(COLOR_SECONDARY))
 	}
 	if b.GetChoc().IsFocused(b) && !b.IsRoot() {
-		ret = ret.Foreground(FOREGROUND_HIGHLIGHT_PRIMARY)
-		ret = ret.Background(BACKGROUND_HIGHLIGHT_PRIMARY)
-		ret = ret.ForegroundBorder(FOREGROUND_HIGHLIGHT_PRIMARY)
+		ret = flavour.GetPresetNoErr(PRESET_SECONDARY).
+			BorderBackground(flavour.GetBGColor(COLOR_PRIMARY_BG))
 	}
 
-	if b.actModel != nil && b.actModel.FlavourPrefsHandlerFct != nil {
-		ret = b.actModel.FlavourPrefsHandlerFct(b, b.actModel.Model, ret)()
+	if b.actModel != nil && b.actModel.FlavourCustomizeHandler != nil {
+		ret = b.actModel.FlavourCustomizeHandler(b, b.actModel.Model, flavour, ret)()
 	}
 
 	return ret
-}
-
-func (b *ChocolateBar) GetStyle() lipgloss.Style {
-	return b.GetChoc().GetFlavour().GetStyle(b.defaultFlavourPrefs())
 }
 
 func (b ChocolateBar) IsRoot() bool {

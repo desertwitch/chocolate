@@ -6,273 +6,227 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type ColorType int
+type ColorName string
 
+// default color names
+// that every color definition has
+// to provide
 const (
-	FOREGROUND_PRIMARY ColorType = iota
-	FOREGROUND_SECONDARY
-	BACKGROUND_PRIMARY
-	BACKGROUND_SECONDARY
-	FOREGROUND_HIGHLIGHT_PRIMARY
-	FOREGROUND_HIGHLIGHT_SECONDARY
-	BACKGROUND_HIGHLIGHT_PRIMARY
-	BACKGROUND_HIGHLIGHT_SECONDARY
+	COLOR_PRIMARY      ColorName = "primary"
+	COLOR_PRIMARY_BG   ColorName = "primaryBack"
+	COLOR_SECONDARY    ColorName = "secondary"
+	COLOR_SECONDARY_BG ColorName = "secondaryBack"
 )
 
-type BorderType int
+var defaultColors = []ColorName{
+	COLOR_PRIMARY,
+	COLOR_PRIMARY_BG,
+	COLOR_SECONDARY,
+	COLOR_SECONDARY_BG,
+}
+
+type ColorDefinitons map[ColorName]lipgloss.Color
+
+type StylePreset string
 
 const (
-	NONE BorderType = iota
-	ROUND
-	BLOCK
-	DOUBLE
-	HIDDEN
+	PRESET_PRIMARY                    StylePreset = "primary"
+	PRESET_PRIMARY_NOBORDER           StylePreset = "primaryNoborder"
+	PRESET_PRIMARY_NOALIGN            StylePreset = "primaryNoalign"
+	PRESET_PRIMARY_NOBORDER_NOALIGN   StylePreset = "primaryNoborderNoalign"
+	PRESET_SECONDARY                  StylePreset = "secondary"
+	PRESET_SECONDARY_NOBORDER         StylePreset = "secondaryNoborder"
+	PRESET_SECONDARY_NOALIGN          StylePreset = "secondaryNoalign"
+	PRESET_SECONDARY_NOBORDER_NOALIGN StylePreset = "secondaryNoborderNoalign"
 )
 
-type Alignment int
-
-const (
-	NO Alignment = iota
-	START
-	END
-	CENTER
-)
-
-type FlavourPrefs struct {
-	foreground          ColorType
-	background          ColorType
-	foregroundBorder    ColorType
-	backgroundBorder    ColorType
-	borderType          BorderType
-	horizontalAlignment Alignment
-	verticalAlignment   Alignment
-	marginTop           int
-	marginBottom        int
-	marginLeft          int
-	marginRight         int
+var defaultPresets = []StylePreset{
+	PRESET_PRIMARY,
+	PRESET_PRIMARY_NOBORDER,
+	PRESET_PRIMARY_NOALIGN,
+	PRESET_PRIMARY_NOBORDER_NOALIGN,
+	PRESET_SECONDARY,
+	PRESET_SECONDARY_NOBORDER,
+	PRESET_SECONDARY_NOALIGN,
+	PRESET_SECONDARY_NOBORDER_NOALIGN,
 }
 
-func (p FlavourPrefs) Foreground(v ColorType) FlavourPrefs {
-	p.foreground = v
-	return p
+type PresetDefinitions map[StylePreset]lipgloss.Style
+
+type Flavour struct {
+	colors  ColorDefinitons
+	presets PresetDefinitions
+	border  lipgloss.Border
+	xAlign  lipgloss.Position
+	yAlign  lipgloss.Position
 }
 
-func (p FlavourPrefs) Background(v ColorType) FlavourPrefs {
-	p.background = v
-	return p
-}
-
-func (p FlavourPrefs) ForegroundBorder(v ColorType) FlavourPrefs {
-	p.foregroundBorder = v
-	return p
-}
-
-func (p FlavourPrefs) BackgroundBorder(v ColorType) FlavourPrefs {
-	p.backgroundBorder = v
-	return p
-}
-
-func (p FlavourPrefs) BorderType(v BorderType) FlavourPrefs {
-	p.borderType = v
-	return p
-}
-
-func (p FlavourPrefs) HorizontalAlignment(v Alignment) FlavourPrefs {
-	p.horizontalAlignment = v
-	return p
-}
-
-func (p FlavourPrefs) VerticalAlignment(v Alignment) FlavourPrefs {
-	p.verticalAlignment = v
-	return p
-}
-
-func (p FlavourPrefs) MarginTop(v int) FlavourPrefs {
-	if v < 0 {
-		v = 0
+func (f *Flavour) SetPreset(v StylePreset, c lipgloss.Style) error {
+	for _, p := range defaultPresets {
+		if v == p {
+			return fmt.Errorf("default presets can't be changed '%s'", p)
+		}
 	}
-	p.marginTop = v
-	return p
+	f.presets[v] = c
+	return nil
 }
 
-func (p FlavourPrefs) MarginBottom(v int) FlavourPrefs {
-	if v < 0 {
-		v = 0
+func (f Flavour) GetPreset(v StylePreset) (lipgloss.Style, error) {
+	if p, ok := f.presets[v]; ok {
+		return p, nil
 	}
-	p.marginBottom = v
-	return p
+	return lipgloss.NewStyle(), fmt.Errorf("preset not exiting '%s'", v)
 }
 
-func (p FlavourPrefs) MarginLeft(v int) FlavourPrefs {
-	if v < 0 {
-		v = 0
+func (f Flavour) GetPresetNoErr(v StylePreset) lipgloss.Style {
+	if p, ok := f.presets[v]; ok {
+		return p
 	}
-	p.marginLeft = v
-	return p
+	return f.presets[PRESET_PRIMARY]
 }
 
-func (p FlavourPrefs) MarginRight(v int) FlavourPrefs {
-	if v < 0 {
-		v = 0
-	}
-	p.marginRight = v
-	return p
+func (f *Flavour) SetColor(v ColorName, c lipgloss.Color) {
+	f.colors[v] = c
 }
 
-func NewFlavourPrefs() FlavourPrefs {
-	ret := FlavourPrefs{
-		foreground:          FOREGROUND_PRIMARY,
-		background:          BACKGROUND_PRIMARY,
-		foregroundBorder:    FOREGROUND_PRIMARY,
-		backgroundBorder:    BACKGROUND_PRIMARY,
-		borderType:          NONE,
-		horizontalAlignment: CENTER,
-		verticalAlignment:   CENTER,
-		marginTop:           0,
-		marginBottom:        0,
-		marginLeft:          0,
-		marginRight:         0,
+func (f Flavour) GetColor(v ColorName) (lipgloss.Color, error) {
+	if c, ok := f.colors[v]; ok {
+		return c, nil
+	}
+	return lipgloss.Color(""), fmt.Errorf("color not existing '%s'", v)
+}
+
+func (f Flavour) GetFGColor(v ColorName) lipgloss.Color {
+	if c, ok := f.colors[v]; ok {
+		return c
+	}
+	return f.colors[COLOR_PRIMARY]
+}
+
+func (f Flavour) GetBGColor(v ColorName) lipgloss.Color {
+	if c, ok := f.colors[v]; ok {
+		return c
+	}
+	return f.colors[COLOR_PRIMARY_BG]
+}
+
+func GetColoredStyle(fg, bg lipgloss.Color) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(fg).
+		BorderForeground(fg).
+		Background(bg).
+		BorderBackground(bg).
+		MarginBackground(bg)
+}
+
+func (f *Flavour) initPresets() {
+	pfg := f.GetFGColor(COLOR_PRIMARY)
+	pbg := f.GetFGColor(COLOR_PRIMARY_BG)
+	sfg := f.GetFGColor(COLOR_SECONDARY)
+	sbg := f.GetFGColor(COLOR_SECONDARY_BG)
+
+	primary := GetColoredStyle(pfg, pbg)
+	secondary := GetColoredStyle(sfg, sbg)
+
+	f.presets[PRESET_PRIMARY] = primary.
+		Border(f.border).
+		AlignHorizontal(f.xAlign).
+		AlignVertical(f.yAlign)
+
+	f.presets[PRESET_PRIMARY_NOBORDER] = primary.
+		AlignHorizontal(f.xAlign).
+		AlignVertical(f.yAlign)
+
+	f.presets[PRESET_PRIMARY_NOALIGN] = primary.
+		Border(f.border)
+
+	f.presets[PRESET_PRIMARY_NOBORDER_NOALIGN] = primary
+
+	f.presets[PRESET_SECONDARY] = secondary.
+		Border(f.border).
+		AlignHorizontal(f.xAlign).
+		AlignVertical(f.yAlign)
+
+	f.presets[PRESET_SECONDARY_NOALIGN] = secondary.
+		Border(f.border)
+
+	f.presets[PRESET_SECONDARY_NOBORDER] = secondary.
+		AlignHorizontal(f.xAlign).
+		AlignVertical(f.yAlign)
+
+	f.presets[PRESET_SECONDARY_NOBORDER_NOALIGN] = secondary
+}
+
+type newFlavourOptions func(*Flavour) error
+
+func WithColors(v ColorDefinitons) newFlavourOptions {
+	return func(f *Flavour) error {
+		for _, color := range defaultColors {
+			if _, ok := v[color]; !ok {
+				return fmt.Errorf("missing color definition '%s'", color)
+			}
+		}
+		return nil
+	}
+}
+
+func WithBorder(v lipgloss.Border) newFlavourOptions {
+	return func(f *Flavour) error {
+		f.border = v
+		return nil
+	}
+}
+
+func WithAlign(v lipgloss.Position) newFlavourOptions {
+	return func(f *Flavour) error {
+		f.xAlign = v
+		f.yAlign = v
+		return nil
+	}
+}
+
+func WithXalign(v lipgloss.Position) newFlavourOptions {
+	return func(f *Flavour) error {
+		f.xAlign = v
+		return nil
+	}
+}
+
+func WithYalign(v lipgloss.Position) newFlavourOptions {
+	return func(f *Flavour) error {
+		f.yAlign = v
+		return nil
+	}
+}
+
+func DefaultFlavour() *Flavour {
+	ret := &Flavour{
+		colors:  DefaultColors,
+		presets: make(PresetDefinitions),
+		border:  lipgloss.RoundedBorder(),
+		xAlign:  lipgloss.Center,
+		yAlign:  lipgloss.Center,
 	}
 
+	ret.initPresets()
 	return ret
 }
 
-type Flavour interface {
-	GetColor(ColorType) lipgloss.Color
-	GetBorder() lipgloss.Border
-	GetBorderType() BorderType
-
-	SetColor(ColorType, uint8)
-	SetBorder(BorderType)
-
-	GetStyle(FlavourPrefs) lipgloss.Style
-}
-
-type flavour struct {
-	colors [8]uint8 // ansi color codes
-	border BorderType
-}
-
-func (f flavour) GetColor(v ColorType) lipgloss.Color {
-	return lipgloss.Color(fmt.Sprint(f.colors[v]))
-}
-
-func (f flavour) GetBorder() lipgloss.Border {
-	switch f.border {
-	case ROUND:
-		return lipgloss.RoundedBorder()
-	case BLOCK:
-		return lipgloss.BlockBorder()
-	case DOUBLE:
-		return lipgloss.DoubleBorder()
-	case HIDDEN:
-		return lipgloss.HiddenBorder()
-	default:
-		return lipgloss.Border{}
-	}
-}
-
-func (f flavour) GetBorderType() BorderType {
-	return f.border
-}
-
-func (f *flavour) SetColor(c ColorType, v uint8) {
-	f.colors[c] = v
-}
-
-func (f *flavour) SetBorder(v BorderType) {
-	f.border = v
-}
-
-func (f *flavour) GetFrameSize() (int, int) {
-	s := lipgloss.NewStyle().
-		Border(f.GetBorder())
-
-	return s.GetFrameSize()
-}
-
-func (f *flavour) GetHorizontalFrameSize() int {
-	s := lipgloss.NewStyle().
-		Border(f.GetBorder())
-
-	return s.GetHorizontalFrameSize()
-}
-
-func (f *flavour) GetVerticalFrameSize() int {
-	s := lipgloss.NewStyle().
-		Border(f.GetBorder())
-
-	return s.GetVerticalFrameSize()
-}
-
-func (f *flavour) GetStyle(v FlavourPrefs) lipgloss.Style {
-	s := lipgloss.NewStyle()
-
-	if v.borderType != NONE {
-		s = s.Border(f.GetBorder())
-	}
-
-	switch v.horizontalAlignment {
-	case START:
-		s = s.AlignHorizontal(lipgloss.Top)
-	case END:
-		s = s.AlignHorizontal(lipgloss.Bottom)
-	case CENTER:
-		s = s.AlignHorizontal(lipgloss.Center)
-	}
-
-	switch v.verticalAlignment {
-	case START:
-		s = s.AlignVertical(lipgloss.Left)
-	case END:
-		s = s.AlignVertical(lipgloss.Right)
-	case CENTER:
-		s = s.AlignVertical(lipgloss.Center)
-	}
-
-	s = s.Foreground(f.GetColor(v.foreground))
-	s = s.Background(f.GetColor(v.background))
-	s = s.BorderForeground(f.GetColor(v.foregroundBorder))
-	s = s.BorderBackground(f.GetColor(v.backgroundBorder))
-	s = s.MarginBackground(f.GetColor(v.backgroundBorder))
-
-	s = s.MarginTop(v.marginTop)
-	s = s.MarginBottom(v.marginBottom)
-	s = s.MarginLeft(v.marginLeft)
-	s = s.MarginRight(v.marginRight)
-
-	return s
-}
-
-type flavourOptions func(*flavour)
-
-func Border(v BorderType) flavourOptions {
-	return func(f *flavour) {
-		f.border = v
-	}
-}
-
-func Color(c ColorType, v uint8) flavourOptions {
-	return func(f *flavour) {
-		f.colors[c] = v
-	}
-}
-
-func ColorPreset(v [8]uint8) flavourOptions {
-	return func(f *flavour) {
-		f.colors = v
-	}
-}
-
-func NewFlavour(opts ...flavourOptions) Flavour {
-	ret := &flavour{
-		border: ROUND,
-		colors: WhiteBlack,
+func NewFlavour(opts ...newFlavourOptions) (*Flavour, error) {
+	ret := &Flavour{
+		colors:  DefaultColors,
+		presets: make(PresetDefinitions),
+		border:  lipgloss.RoundedBorder(),
+		xAlign:  lipgloss.Center,
+		yAlign:  lipgloss.Center,
 	}
 
 	for _, opt := range opts {
-		opt(ret)
+		if err := opt(ret); err != nil {
+			return nil, err
+		}
 	}
 
-	return ret
+	ret.initPresets()
+	return ret, nil
 }

@@ -1,12 +1,10 @@
 package chocolate
 
-var WhiteBlack = [8]uint8{
-	246, // FOREGROUND_PRIMARY
-	255, // FOREGROUND_SECONDARY
-	232, // BACKGROUND_PRIMARY
-	242, // BACKGROUND_SECONDARY
-	15,  // FOREGROUND_HIGHLIGHT_PRIMARY
-	15,  // FOREGROUND_HIGHLIGHT_SECONDARY
-	237, // BACKGROUND_HIGHLIGHT_PRIMARY
-	237, // BACKGROUND_HIGHLIGHT_SECONDARY
+import "github.com/charmbracelet/lipgloss"
+
+var DefaultColors = ColorDefinitons{
+	COLOR_PRIMARY:      lipgloss.Color("246"),
+	COLOR_PRIMARY_BG:   lipgloss.Color("232"),
+	COLOR_SECONDARY:    lipgloss.Color("15"),
+	COLOR_SECONDARY_BG: lipgloss.Color("237"),
 }

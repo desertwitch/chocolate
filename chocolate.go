@@ -82,7 +82,7 @@ type Chocolate struct {
 	barctl *selector
 
 	// theme
-	flavour Flavour
+	flavour *Flavour
 
 	// autofocus is used to tell the Chocolate
 	// to directly hand over input focus to the
@@ -185,7 +185,7 @@ func (c *Chocolate) ForceSelect(v *ChocolateBar) {
 	c.barctl.forceSelect(v)
 }
 
-func (c Chocolate) GetFlavour() Flavour {
+func (c Chocolate) GetFlavour() *Flavour {
 	return c.flavour
 }
 
@@ -272,7 +272,7 @@ func (c *Chocolate) initBar(v *ChocolateBar) error {
 
 type chocolateOptions func(*Chocolate)
 
-func WithFlavor(v Flavour) func(*Chocolate) {
+func WithFlavor(v *Flavour) func(*Chocolate) {
 	return func(c *Chocolate) {
 		c.flavour = v
 	}
@@ -303,7 +303,7 @@ func WithAutofocus(v *ChocolateBar) func(*Chocolate) {
 func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
 	ret := &Chocolate{
 		KeyMap:    DefaultKeyMap(),
-		flavour:   NewFlavour(),
+		flavour:   DefaultFlavour(),
 		autofocus: false,
 	}
 
