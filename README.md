@@ -12,7 +12,7 @@ at any time.
 Still now is the best time to get *ANY* feedback to change the way
 in the right direction if needed.
 
-To get started, please see the [examples] https://github.com/mfulz/chocolate/tree/master/examples
+To get started, please see the [examples](https://github.com/mfulz/chocolate/tree/master/examples)
 
 ## Priority
 
