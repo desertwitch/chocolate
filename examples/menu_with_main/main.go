@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"gitea.olznet.de/mfulz/chocolate"
+	flavour "gitea.olznet.de/mfulz/chocolate/flavour"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -23,12 +24,12 @@ func (d menuItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 		return
 	}
 
-	s := i.flavour.GetPresetNoErr(chocolate.PRESET_PRIMARY_NOBORDER).
+	s := flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER).
 		Width(i.width)
 	fn := s.Render
 
 	if index == m.Index() {
-		fn = i.flavour.GetPresetNoErr(chocolate.PRESET_SECONDARY_NOBORDER).
+		fn = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY_NOBORDER).
 			Width(i.width).
 			Render
 	}
@@ -39,11 +40,10 @@ func (d menuItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 type MainChangeMsg string
 
 type menuModel struct {
-	items   list.Model
-	name    string
-	dst     string
-	flavour *chocolate.Flavour
-	width   int
+	items list.Model
+	name  string
+	dst   string
+	width int
 }
 
 func (m menuModel) Init() tea.Cmd { return nil }
@@ -80,7 +80,7 @@ func (m menuModel) View() string {
 	return m.items.View()
 }
 
-func NewMenuModel(name string, items []list.Item, dst string, flavour *chocolate.Flavour) *menuModel {
+func NewMenuModel(name string, items []list.Item, dst string) *menuModel {
 	const defaultWidth = 50
 	const defaultHeight = 50
 	l := list.New(items, menuItemDelegate{}, defaultWidth, defaultHeight)
@@ -90,10 +90,9 @@ func NewMenuModel(name string, items []list.Item, dst string, flavour *chocolate
 	l.SetShowTitle(false)
 
 	ret := &menuModel{
-		items:   l,
-		name:    name,
-		dst:     dst,
-		flavour: flavour,
+		items: l,
+		name:  name,
+		dst:   dst,
 	}
 
 	return ret
@@ -105,15 +104,12 @@ func (t mainModel) Init() tea.Cmd                           { return nil }
 func (t mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t mainModel) View() string                            { return string(t) }
 
-var flavour = chocolate.DefaultFlavour()
-
 var menuBarFlavourCustomizer = func(
 	b *chocolate.ChocolateBar,
-	m tea.Model, f *chocolate.Flavour,
-	s lipgloss.Style,
+	m tea.Model, s lipgloss.Style,
 ) func() lipgloss.Style {
 	return func() lipgloss.Style {
-		return f.GetPresetNoErr(chocolate.PRESET_PRIMARY_NOBORDER).
+		return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER).
 			MarginTop(1).
 			MarginLeft(3).
 			MarginRight(3)
@@ -166,11 +162,10 @@ func main() {
 
 	menuModel := NewMenuModel("Main Menu",
 		[]list.Item{
-			NewMenuModel("First", nil, "first", flavour),
-			NewMenuModel("Second", nil, "second", flavour),
+			NewMenuModel("First", nil, "first"),
+			NewMenuModel("Second", nil, "second"),
 		},
 		"",
-		flavour,
 	)
 
 	menuBar := chocolate.NewChocolateBar(nil,

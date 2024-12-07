@@ -1,4 +1,4 @@
-package chocolate
+package flavour
 
 import (
 	"fmt"
@@ -155,6 +155,32 @@ func (f *Flavour) initPresets() {
 		AlignVertical(f.yAlign)
 
 	f.presets[PRESET_SECONDARY_NOBORDER_NOALIGN] = secondary
+}
+
+var defaultFlavour = DefaultFlavour()
+
+func SetPreset(v StylePreset, c lipgloss.Style) error {
+	return defaultFlavour.SetPreset(v, c)
+}
+
+func GetPreset(v StylePreset) (lipgloss.Style, error) {
+	return defaultFlavour.GetPreset(v)
+}
+
+func GetPresetNoErr(v StylePreset) lipgloss.Style {
+	return defaultFlavour.GetPresetNoErr(v)
+}
+
+func SetColor(v ColorName, c lipgloss.Color) {
+	defaultFlavour.SetColor(v, c)
+}
+
+func GetColor(v ColorName) (lipgloss.Color, error) {
+	return defaultFlavour.GetColor(v)
+}
+
+func GetColorNoErr(v ColorName) lipgloss.Color {
+	return defaultFlavour.GetFGColor(v)
 }
 
 type newFlavourOptions func(*Flavour) error

@@ -1,4 +1,4 @@
-package chocolate
+package flavour
 
 import "github.com/charmbracelet/lipgloss"
 

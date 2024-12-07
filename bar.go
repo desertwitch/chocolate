@@ -1,6 +1,7 @@
 package chocolate
 
 import (
+	"gitea.olznet.de/mfulz/chocolate/flavour"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
@@ -88,8 +89,8 @@ type ChangeModelMsg string
 
 type (
 	ModelUpdateHandlerFct           func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
-	ModelFlavourCustomizeHandlerFct func(*ChocolateBar, tea.Model, *Flavour, lipgloss.Style) func() lipgloss.Style
-	BarFlavourCustomizeHandlerFct   func(*ChocolateBar, *Flavour, lipgloss.Style) func() lipgloss.Style
+	ModelFlavourCustomizeHandlerFct func(*ChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
+	BarFlavourCustomizeHandlerFct   func(*ChocolateBar, lipgloss.Style) func() lipgloss.Style
 )
 
 type BarModel struct {
@@ -182,25 +183,24 @@ type ChocolateBar struct {
 }
 
 func (b *ChocolateBar) GetStyle() lipgloss.Style {
-	flavour := b.GetChoc().GetFlavour()
-	ret := flavour.GetPresetNoErr(PRESET_PRIMARY_NOBORDER)
+	ret := flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER)
 
 	if b.HasModel() || b.IsRoot() {
-		ret = flavour.GetPresetNoErr(PRESET_PRIMARY)
+		ret = flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
 		// ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
 	}
 	if b.GetChoc().IsSelected(b) && !b.IsRoot() {
-		ret = ret.BorderForeground(flavour.GetFGColor(COLOR_SECONDARY))
+		ret = ret.BorderForeground(flavour.GetColorNoErr(flavour.COLOR_SECONDARY))
 	}
 	if b.GetChoc().IsFocused(b) && !b.IsRoot() {
-		ret = flavour.GetPresetNoErr(PRESET_SECONDARY).
-			BorderBackground(flavour.GetBGColor(COLOR_PRIMARY_BG))
+		ret = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY).
+			BorderBackground(flavour.GetColorNoErr(flavour.COLOR_PRIMARY_BG))
 	}
 
 	if b.HasModel() && b.actModel.FlavourCustomizeHandler != nil {
-		ret = b.actModel.FlavourCustomizeHandler(b, b.actModel.Model, flavour, ret)()
+		ret = b.actModel.FlavourCustomizeHandler(b, b.actModel.Model, ret)()
 	} else if b.FlavourCustomzieHandler != nil {
-		ret = b.FlavourCustomzieHandler(b, flavour, ret)()
+		ret = b.FlavourCustomzieHandler(b, ret)()
 	}
 
 	return ret
