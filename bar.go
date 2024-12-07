@@ -185,7 +185,7 @@ func (b *ChocolateBar) GetStyle() lipgloss.Style {
 	flavour := b.GetChoc().GetFlavour()
 	ret := flavour.GetPresetNoErr(PRESET_PRIMARY_NOBORDER)
 
-	if b.actModel != nil || b.IsRoot() {
+	if b.HasModel() || b.IsRoot() {
 		ret = flavour.GetPresetNoErr(PRESET_PRIMARY)
 		// ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
 	}
@@ -197,8 +197,10 @@ func (b *ChocolateBar) GetStyle() lipgloss.Style {
 			BorderBackground(flavour.GetBGColor(COLOR_PRIMARY_BG))
 	}
 
-	if b.actModel != nil && b.actModel.FlavourCustomizeHandler != nil {
+	if b.HasModel() && b.actModel.FlavourCustomizeHandler != nil {
 		ret = b.actModel.FlavourCustomizeHandler(b, b.actModel.Model, flavour, ret)()
+	} else if b.FlavourCustomzieHandler != nil {
+		ret = b.FlavourCustomzieHandler(b, flavour, ret)()
 	}
 
 	return ret
@@ -231,8 +233,18 @@ func (b ChocolateBar) GetChoc() *Chocolate {
 	return b.choc
 }
 
+func (b ChocolateBar) HasModel() bool {
+	if b.actModel != nil {
+		return b.actModel.Model != nil
+	}
+	return false
+}
+
 func (b ChocolateBar) GetModel() tea.Model {
-	return b.actModel.Model
+	if b.HasModel() {
+		return b.actModel.Model
+	}
+	return nil
 }
 
 func (b ChocolateBar) GetID() string {
@@ -280,7 +292,7 @@ func (b *ChocolateBar) Resize(w, h int) {
 			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: width, Height: height})
 		}
 	}
-	if b.actModel != nil {
+	if b.HasModel() {
 		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	} else {
 		for _, c := range b.bars {
@@ -300,7 +312,7 @@ func (b *ChocolateBar) preRender() {
 		return
 	}
 
-	if b.actModel != nil {
+	if b.HasModel() {
 		if !b.preRendered {
 			b.preView = b.actModel.Model.View()
 			b.contentWidth, b.contentHeight = lipgloss.Size(b.preView)
@@ -493,7 +505,7 @@ func (b *ChocolateBar) finalizeSizing() {
 		}
 
 	}
-	if b.actModel != nil {
+	if b.HasModel() {
 		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
 	}
 }
@@ -508,7 +520,7 @@ func (b *ChocolateBar) render() {
 		return
 	}
 
-	if b.actModel != nil {
+	if b.HasModel() {
 		b.view = b.GetStyle().
 			Width(b.width).
 			Height(b.height).
@@ -645,7 +657,7 @@ func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 		b.SelectModel(model)
 	}
 
-	if b.actModel != nil {
+	if b.HasModel() {
 		b.actModel.Model, cmd = b.actModel.Model.Update(msg)
 		cmds = append(cmds, cmd)
 	}
@@ -712,6 +724,12 @@ func WithYScaler(v Scaler) func(*ChocolateBar) {
 func Hidden() func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
 		b.hidden = true
+	}
+}
+
+func WithFlavourCustomizeHandler(v BarFlavourCustomizeHandlerFct) func(*ChocolateBar) {
+	return func(b *ChocolateBar) {
+		b.FlavourCustomzieHandler = v
 	}
 }
 

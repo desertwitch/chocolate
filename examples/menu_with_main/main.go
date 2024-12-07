@@ -107,7 +107,11 @@ func (t mainModel) View() string                            { return string(t) }
 
 var flavour = chocolate.DefaultFlavour()
 
-var menuBarFlavourCustomizer = func(b *chocolate.ChocolateBar, m tea.Model, f *chocolate.Flavour, s lipgloss.Style) func() lipgloss.Style {
+var menuBarFlavourCustomizer = func(
+	b *chocolate.ChocolateBar,
+	m tea.Model, f *chocolate.Flavour,
+	s lipgloss.Style,
+) func() lipgloss.Style {
 	return func() lipgloss.Style {
 		return f.GetPresetNoErr(chocolate.PRESET_PRIMARY_NOBORDER).
 			MarginTop(1).
