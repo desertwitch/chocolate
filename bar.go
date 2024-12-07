@@ -97,6 +97,12 @@ type BarModel struct {
 	FlavourCustomizeHandler ModelFlavourCustomizeHandlerFct
 }
 
+// ChocolateBar is the main workhorse that will
+// provide most of the functionality and is doing
+// all the calculations and handling of the layout
+// it further holds the tea.Models and wrap the
+// calls around, so that it acts at the end just
+// a view container
 type ChocolateBar struct {
 	Scaling
 	id string

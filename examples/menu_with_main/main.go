@@ -150,7 +150,7 @@ func main() {
 	mainSecond := mainModel("second")
 
 	mainModels := make(map[string]*chocolate.BarModel)
-	mainModels["dummy"] = &chocolate.BarModel{Model: mainDummy, UpdateHandlerFct: mainBarUpdateHandler}
+	mainModels["dummy"] = &chocolate.BarModel{Model: mainDummy}
 	mainModels["first"] = &chocolate.BarModel{Model: mainFirst, UpdateHandlerFct: mainBarUpdateHandler}
 	mainModels["second"] = &chocolate.BarModel{Model: mainSecond, UpdateHandlerFct: mainBarUpdateHandler}
 

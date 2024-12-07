@@ -69,6 +69,13 @@ func (s *selector) forceSelect(v *ChocolateBar) {
 	s.focused = v
 }
 
+// Chocolate is the main entry point and acts as
+// a control handler to work with the layouts
+// provided by ChocolateBar.
+// It implements the tea.Model interface and can
+// be used as program entry point.
+// Further it provides some rough default key bindings
+// to be directly usable as ui.
 type Chocolate struct {
 	// Key mappings
 	KeyMap KeyMap
