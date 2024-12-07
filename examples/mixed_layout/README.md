@@ -1,3 +1,3 @@
 # Menu with Main
 
-<img width="800" src="./mixedlayout.png" />
+<img width="1080" src="./mixedlayout.png" />
