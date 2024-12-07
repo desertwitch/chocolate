@@ -111,14 +111,27 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	b := c.GetFocused()
-	if b != nil {
-		cmds = append(cmds, b.HandleUpdate(msg))
-	}
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.handleResize(msg)
 		return c, nil
+	case ForceSelectMsg:
+		if bar := c.GetBarByID(string(msg)); bar != nil {
+			c.ForceSelect(bar)
+		}
+		return c, nil
+	case BarHideMsg:
+		if bar := c.GetBarByID(msg.Id); bar != nil {
+			if c.IsSelected(bar) && msg.Value {
+				c.barctl.next()
+			}
+			bar.Hide(msg.Value)
+		}
+		return c, nil
+	case ModelChangeMsg:
+		if bar := c.GetBarByID(msg.Id); bar != nil {
+			cmds = append(cmds, bar.HandleUpdate(msg))
+		}
 	case tea.KeyMsg:
 		if b != nil {
 			if key.Matches(msg, c.KeyMap.Release) && !c.autofocus {

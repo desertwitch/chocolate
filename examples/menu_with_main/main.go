@@ -40,10 +40,11 @@ func (d menuItemDelegate) Render(w io.Writer, m list.Model, index int, listItem 
 type MainChangeMsg string
 
 type menuModel struct {
-	items list.Model
-	name  string
-	dst   string
-	width int
+	items  list.Model
+	name   string
+	dst    string
+	choice string
+	width  int
 }
 
 func (m menuModel) Init() tea.Cmd { return nil }
@@ -64,9 +65,22 @@ func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
+			m.choice = ""
 			i, ok := m.items.SelectedItem().(*menuModel)
 			if ok {
-				return m, func() tea.Msg { return MainChangeMsg(i.dst) }
+				var cmds []tea.Cmd
+				cmds = append(cmds,
+					func() tea.Msg {
+						return chocolate.ModelChangeMsg{
+							Id:    "main",
+							Model: i.dst,
+						}
+					},
+					func() tea.Msg {
+						return chocolate.ForceSelectMsg("main")
+					},
+				)
+				return m, tea.Batch(cmds...)
 			}
 		}
 	}
@@ -116,21 +130,6 @@ var menuBarFlavourCustomizer = func(
 	}
 }
 
-var menuBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
-	return func(msg tea.Msg) tea.Cmd {
-		switch msg := msg.(type) {
-		case tea.WindowSizeMsg:
-			m.(*menuModel).width = msg.Width
-		case MainChangeMsg:
-			model := string(msg)
-			bar := b.GetChoc().GetBarByID("main")
-			bar.SelectModel(model)
-			b.GetChoc().ForceSelect(bar)
-		}
-		return nil
-	}
-}
-
 var mainBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
 		switch msg := msg.(type) {
@@ -171,7 +170,6 @@ func main() {
 	menuBar := chocolate.NewChocolateBar(nil,
 		chocolate.WithModel(&chocolate.BarModel{
 			Model:                   menuModel,
-			UpdateHandlerFct:        menuBarUpdateHandler,
 			FlavourCustomizeHandler: menuBarFlavourCustomizer,
 		}),
 		chocolate.WithID("menu"),

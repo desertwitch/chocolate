@@ -85,8 +85,6 @@ type Scaling struct {
 	Y Scaler
 }
 
-type ChangeModelMsg string
-
 type (
 	ModelUpdateHandlerFct           func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
 	ModelFlavourCustomizeHandlerFct func(*ChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
@@ -652,9 +650,8 @@ func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case ChangeModelMsg:
-		model := string(msg)
-		b.SelectModel(model)
+	case ModelChangeMsg:
+		b.SelectModel(msg.Model)
 	}
 
 	if b.HasModel() {
