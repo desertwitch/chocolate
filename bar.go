@@ -184,6 +184,9 @@ type ChocolateBar struct {
 
 	// if this bar can be selected
 	selectable bool
+	// if this bar should receive input when
+	// selected
+	inputOnSelect bool
 }
 
 func (b *ChocolateBar) GetStyle() lipgloss.Style {
@@ -214,6 +217,14 @@ func (b ChocolateBar) IsRoot() bool {
 	return b.parent == nil
 }
 
+func (b ChocolateBar) GetParent() *ChocolateBar {
+	return b.parent
+}
+
+func (b ChocolateBar) GetLayout() LayoutType {
+	return b.layoutType
+}
+
 func (b *ChocolateBar) setChocolate(v *Chocolate) {
 	b.choc = v
 	for _, c := range b.bars {
@@ -231,6 +242,10 @@ func (b *ChocolateBar) SetChocolate(v *Chocolate) {
 
 func (b ChocolateBar) CanFocus() bool {
 	return b.actModel != nil
+}
+
+func (b ChocolateBar) InputOnSelect() bool {
+	return b.inputOnSelect
 }
 
 func (b ChocolateBar) GetChoc() *Chocolate {
@@ -736,6 +751,12 @@ func WithFlavourCustomizeHandler(v BarFlavourCustomizeHandlerFct) func(*Chocolat
 	}
 }
 
+func WithInputOnSelect() func(*ChocolateBar) {
+	return func(b *ChocolateBar) {
+		b.inputOnSelect = true
+	}
+}
+
 func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *ChocolateBar {
 	ret := &ChocolateBar{
 		id:            uuid.NewString(),
@@ -751,6 +772,7 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *Chocola
 		contentHeight: 0,
 		hidden:        false,
 		selectable:    false,
+		inputOnSelect: false,
 	}
 	ret.X = NewParentScaler(1)
 	ret.Y = NewParentScaler(1)

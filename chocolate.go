@@ -91,17 +91,17 @@ type Chocolate struct {
 	// theme
 	// flavour *Flavour
 
-	// autofocus is used to tell the Chocolate
+	// disableSelector is used to tell the Chocolate
 	// to directly hand over input focus to the
 	// selected bar
 	// This is usefull for something like a menu
 	// which has focus on start and will load other
 	// models on selection and changes selected
-	// When autofocus is enabled the default leave
+	// When disableSelector is enabled the default leave
 	// keyMap will be disabled and the handling
 	// of selecting, focusing, etc. will be handed
 	// over to the bar and it's models
-	autofocus bool
+	disableSelector bool
 }
 
 func (c *Chocolate) handleResize(size tea.WindowSizeMsg) {
@@ -141,10 +141,13 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyMsg:
 		if b != nil {
-			if key.Matches(msg, c.KeyMap.Release) && !c.autofocus {
+			if key.Matches(msg, c.KeyMap.Release) && !c.disableSelector {
 				c.barctl.unfocus()
 			} else {
 				cmds = append(cmds, b.HandleUpdate(msg))
+			}
+			if c.barctl.focused == nil {
+				cmds = append(cmds, c.handleNavigation(msg))
 			}
 		} else {
 			cmds = append(cmds, c.handleNavigation(msg))
@@ -183,7 +186,16 @@ func (c Chocolate) GetBarByID(v string) *ChocolateBar {
 }
 
 func (c Chocolate) GetFocused() *ChocolateBar {
-	return c.barctl.focused
+	ret := c.barctl.focused
+	if ret != nil {
+		return ret
+	}
+
+	ret = c.barctl.selected
+	if ret != nil && ret.InputOnSelect() {
+		return ret
+	}
+	return nil
 }
 
 func (c Chocolate) GetSelected() *ChocolateBar {
@@ -199,7 +211,7 @@ func (c Chocolate) IsFocused(v *ChocolateBar) bool {
 }
 
 func (c *Chocolate) ForceSelect(v *ChocolateBar) {
-	if !c.autofocus {
+	if !c.disableSelector {
 		return
 	}
 	c.barctl.forceSelect(v)
@@ -305,15 +317,15 @@ func WithSelector(v []string, s int) func(*Chocolate) {
 
 func WithAutofocus(v *ChocolateBar) func(*Chocolate) {
 	return func(c *Chocolate) {
-		c.autofocus = true
+		c.disableSelector = true
 		c.ForceSelect(v)
 	}
 }
 
 func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
 	ret := &Chocolate{
-		KeyMap:    DefaultKeyMap(),
-		autofocus: false,
+		KeyMap:          DefaultKeyMap(),
+		disableSelector: false,
 	}
 
 	// bar initializing
