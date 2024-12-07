@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"gitea.olznet.de/mfulz/chocolate"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mfulz/chocolate"
 )
 
 type testModel struct {

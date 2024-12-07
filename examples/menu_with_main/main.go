@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 
-	"gitea.olznet.de/mfulz/chocolate"
-	flavour "gitea.olznet.de/mfulz/chocolate/flavour"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mfulz/chocolate"
+	flavour "github.com/mfulz/chocolate/flavour"
 )
 
 func (i menuModel) FilterValue() string { return "" }

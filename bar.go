@@ -1,10 +1,10 @@
 package chocolate
 
 import (
-	"gitea.olznet.de/mfulz/chocolate/flavour"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
+	"github.com/mfulz/chocolate/flavour"
 )
 
 type LayoutType int

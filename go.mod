@@ -1,4 +1,4 @@
-module gitea.olznet.de/mfulz/chocolate
+module github.com/mfulz/chocolate
 
 go 1.23.3
 
