@@ -7,31 +7,45 @@ import (
 	"github.com/mfulz/chocolate/flavour"
 )
 
+// A LayoutType defines the base direction of the bar
 type LayoutType int
 
 const (
-	LIST LayoutType = iota
-	LINEAR
+	LIST   LayoutType = iota // will define a vertical arranged layout
+	LINEAR                   // will define a horizontal arranged layout
 )
 
-// ScalingType defines how the ChocolateBar will be scaled
-// FIXED will be a fixed number of cells
-// RELATIVE will grow or shrink on screen resizes relative to the set values
+// A ScalingType defines how the ChocolateBar will be scaled
 type ScalingType int
 
 const (
-	PARENT ScalingType = iota
-	DYNAMIC
-	FIXED
+	PARENT  ScalingType = iota // will fill up the available size
+	DYNAMIC                    // will grow as big as the content is
+	FIXED                      // is a fixed size
 )
 
+// Scaler defines how a bar is sized
 type Scaler interface {
+	// Get is a getter for retrieving the ScalingType and the
+	// corresponding value.
 	Get() (ScalingType, int)
+
+	// GetValue is a getter for the corresponding value.
 	GetValue() int
+
+	// Set is a setter to change the Scaler for the bar.
 	Set(ScalingType, int)
+
+	// Is will check if the Scaler is set to a ScalingType.
 	Is(ScalingType) bool
+
+	// IsParent is a shorthand for Is(PARENT).
 	IsParent() bool
+
+	// IsDynamic is a shorthand for Is(DYNAMIC).
 	IsDynamic() bool
+
+	// IsFixed is a shorthand for Is(Fixed).
 	IsFixed() bool
 }
 
