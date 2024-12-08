@@ -10,6 +10,7 @@ import (
 // A LayoutType defines the base direction of the bar
 type LayoutType int
 
+// Layout types
 const (
 	LIST   LayoutType = iota // will define a vertical arranged layout
 	LINEAR                   // will define a horizontal arranged layout
@@ -18,6 +19,7 @@ const (
 // A ScalingType defines how the ChocolateBar will be scaled
 type ScalingType int
 
+// Scaling types
 const (
 	PARENT  ScalingType = iota // will fill up the available size
 	DYNAMIC                    // will grow as big as the content is
@@ -76,24 +78,49 @@ func (s scaler) IsParent() bool        { return s.Is(PARENT) }
 func (s scaler) IsDynamic() bool       { return s.Is(DYNAMIC) }
 func (s scaler) IsFixed() bool         { return s.Is(FIXED) }
 
+// NewScaler will create a new Scaler
+//
+// The second parameter v will be used to calculate sized scaling
+// depending on the requested ScalingType.
+// See the shorthand versions NewParentScaler, NewDynamicScaler, NewFixedScaler for
+// more information.
 func NewScaler(t ScalingType, v int) Scaler {
 	ret := &scaler{}
 	ret.Set(t, v)
 	return ret
 }
 
+// NewParentScaler creates a PARENT Scaler
+//
+// The value v will be used to calculate a relative size to other
+// parent scalers.
+// That means if you have 2 parent scalers in a LINEAR layout, where both
+// have the same value v they will have the same size.
+// If one has a value of 2 and the other will have a value of 1 the total
+// available size will separated in 3 parts where 2 will go to the first
+// and 1 will go to the second.
+// If there is one with 5 and another with 2 the total size will be separated in
+// 7 parts and the first will get 5 and the second 2 and so on.
 func NewParentScaler(v int) Scaler {
 	return NewScaler(PARENT, v)
 }
 
+// NewDynamicScaler creates a DYNAMIC Scaler
+//
+// This type will just grow as big as the underlying content is.
 func NewDynamicScaler() Scaler {
 	return NewScaler(DYNAMIC, 0)
 }
 
+// NewFixedScaler creates a new FIXED Scaler
+//
+// The value v will set the size to a fixed number which will be available.
 func NewFixedScaler(v int) Scaler {
 	return NewScaler(FIXED, v)
 }
 
+// Scaling is a helper struct to combine Scalers for both axes where X is horizontal
+// and Y is vertical
 type Scaling struct {
 	X Scaler
 	Y Scaler
@@ -706,7 +733,7 @@ func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-type chocolateBarOptions func(*ChocolateBar)
+type ChocolateBarOptions func(*ChocolateBar)
 
 func WithLayout(v LayoutType) func(*ChocolateBar) {
 	return func(b *ChocolateBar) {
@@ -771,7 +798,7 @@ func WithInputOnSelect() func(*ChocolateBar) {
 	}
 }
 
-func NewChocolateBar(bars []*ChocolateBar, opts ...chocolateBarOptions) *ChocolateBar {
+func NewChocolateBar(bars []*ChocolateBar, opts ...ChocolateBarOptions) *ChocolateBar {
 	ret := &ChocolateBar{
 		id:            uuid.NewString(),
 		bars:          bars,

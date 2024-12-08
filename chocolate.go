@@ -64,6 +64,10 @@ func (s *selector) unfocus() {
 	s.focused = nil
 }
 
+func (s *selector) selectBar(v *ChocolateBar) {
+	s.selected = v
+}
+
 func (s *selector) forceSelect(v *ChocolateBar) {
 	s.selected = v
 	s.focused = v
@@ -125,6 +129,11 @@ func (c Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ForceSelectMsg:
 		if bar := c.GetBarByID(string(msg)); bar != nil {
 			c.ForceSelect(bar)
+		}
+		return c, nil
+	case SelectMsg:
+		if bar := c.GetBarByID(string(msg)); bar != nil {
+			c.Select(bar)
 		}
 		return c, nil
 	case BarHideMsg:
@@ -215,6 +224,10 @@ func (c *Chocolate) ForceSelect(v *ChocolateBar) {
 		return
 	}
 	c.barctl.forceSelect(v)
+}
+
+func (c *Chocolate) Select(v *ChocolateBar) {
+	c.barctl.selectBar(v)
 }
 
 func (c Chocolate) View() string {
