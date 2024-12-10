@@ -16,9 +16,10 @@ func (t testModel) Init() tea.Cmd                            { return nil }
 func (t *testModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t testModel) View() string                             { return t.final }
 
-var testModelUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
+var testModelUpdateHandler = func(b chocolate.CChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	model := m.(*testModel)
 	return func(msg tea.Msg) tea.Cmd {
+		scaling := b.GetScaling()
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
@@ -27,17 +28,17 @@ var testModelUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(t
 				if p != nil {
 					switch p.GetLayout() {
 					case chocolate.LIST:
-						l, v := b.Y.Get()
+						l, v := scaling.Y.Get()
 						v++
-						b.Y.Set(l, v)
+						scaling.Y.Set(l, v)
 						if l != chocolate.DYNAMIC {
 							model.final = fmt.Sprintf("%s-%d", model.base, v)
 						}
 						return nil
 					case chocolate.LINEAR:
-						l, v := b.X.Get()
+						l, v := scaling.X.Get()
 						v++
-						b.X.Set(l, v)
+						scaling.X.Set(l, v)
 						if l != chocolate.DYNAMIC {
 							model.final = fmt.Sprintf("%s-%d", model.base, v)
 						}
@@ -49,17 +50,17 @@ var testModelUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(t
 				if p != nil {
 					switch p.GetLayout() {
 					case chocolate.LIST:
-						l, v := b.Y.Get()
+						l, v := scaling.Y.Get()
 						v--
-						b.Y.Set(l, v)
+						scaling.Y.Set(l, v)
 						if l != chocolate.DYNAMIC {
 							model.final = fmt.Sprintf("%s-%d", model.base, v)
 						}
 						return nil
 					case chocolate.LINEAR:
-						l, v := b.X.Get()
+						l, v := scaling.X.Get()
 						v--
-						b.X.Set(l, v)
+						scaling.X.Set(l, v)
 						if l != chocolate.DYNAMIC {
 							model.final = fmt.Sprintf("%s-%d", model.base, v)
 						}
@@ -122,14 +123,14 @@ func main() {
 		chocolate.WithInputOnSelect(),
 		chocolate.WithXScaler(chocolate.NewFixedScaler(60)),
 	)
-	containerBar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
+	containerBar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
 		thirdBar,
 		fourthBar,
 		fifthBar,
 	},
 		chocolate.WithLayout(chocolate.LIST),
 	)
-	bar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
+	bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
 		firstBar,
 		secondBar,
 		containerBar,

@@ -119,7 +119,7 @@ func (t mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t mainModel) View() string                            { return string(t) }
 
 var menuBarFlavourCustomizer = func(
-	b *chocolate.ChocolateBar,
+	b chocolate.CChocolateBar,
 	m tea.Model, s lipgloss.Style,
 ) func() lipgloss.Style {
 	return func() lipgloss.Style {
@@ -130,14 +130,14 @@ var menuBarFlavourCustomizer = func(
 	}
 }
 
-var mainBarUpdateHandler = func(b *chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
+var mainBarUpdateHandler = func(b chocolate.CChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "q", "esc":
 				b.SelectModel("dummy")
-				b.GetChoc().ForceSelect(b.GetChoc().GetBarByID("menu"))
+				b.GetChocolate().ForceSelect(b.GetChocolate().GetBarByID("menu"))
 			}
 		}
 		return nil
@@ -176,7 +176,7 @@ func main() {
 		chocolate.WithXScaler(chocolate.NewFixedScaler(20)),
 	)
 
-	bar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
+	bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
 		menuBar,
 		mainContentBar,
 	},

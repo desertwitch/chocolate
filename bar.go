@@ -127,9 +127,9 @@ type Scaling struct {
 }
 
 type (
-	ModelUpdateHandlerFct           func(*ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
-	ModelFlavourCustomizeHandlerFct func(*ChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
-	BarFlavourCustomizeHandlerFct   func(*ChocolateBar, lipgloss.Style) func() lipgloss.Style
+	ModelUpdateHandlerFct           func(CChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+	ModelFlavourCustomizeHandlerFct func(CChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
+	BarFlavourCustomizeHandlerFct   func(CChocolateBar, lipgloss.Style) func() lipgloss.Style
 )
 
 type BarModel struct {
@@ -138,13 +138,13 @@ type BarModel struct {
 	FlavourCustomizeHandler ModelFlavourCustomizeHandlerFct
 }
 
-// ChocolateBar is the main workhorse that will
+// chocolateBar is the main workhorse that will
 // provide most of the functionality and is doing
 // all the calculations and handling of the layout
 // it further holds the tea.Models and wrap the
 // calls around, so that it acts at the end just
 // a view container
-type ChocolateBar struct {
+type chocolateBar struct {
 	Scaling
 	id string
 
@@ -156,13 +156,13 @@ type ChocolateBar struct {
 	choc *Chocolate
 
 	// bars in order for the layout
-	bars []*ChocolateBar
+	bars []CChocolateBar
 	// backref to the parent bar
 	// this is used to propagate the
 	// dynamic sizing back to the parent
 	// as well to also adjust depending
 	// on the parent layout
-	parent *ChocolateBar
+	parent *chocolateBar
 
 	// layout parameters
 	layoutType LayoutType
@@ -230,17 +230,17 @@ type ChocolateBar struct {
 	inputOnSelect bool
 }
 
-func (b *ChocolateBar) GetStyle() lipgloss.Style {
+func (b *chocolateBar) GetStyle() lipgloss.Style {
 	ret := flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER)
 
 	if b.HasModel() || b.IsRoot() {
 		ret = flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
 		// ret = ret.BorderType(b.GetChoc().GetFlavour().GetBorderType())
 	}
-	if b.GetChoc().IsSelected(b) && !b.IsRoot() {
+	if b.GetChocolate().IsSelected(b) && !b.IsRoot() {
 		ret = ret.BorderForeground(flavour.GetColorNoErr(flavour.COLOR_SECONDARY))
 	}
-	if b.GetChoc().IsFocused(b) && !b.IsRoot() {
+	if b.GetChocolate().IsFocused(b) && !b.IsRoot() {
 		ret = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY).
 			BorderBackground(flavour.GetColorNoErr(flavour.COLOR_PRIMARY_BG))
 	}
@@ -254,26 +254,35 @@ func (b *ChocolateBar) GetStyle() lipgloss.Style {
 	return ret
 }
 
-func (b ChocolateBar) IsRoot() bool {
+func (b chocolateBar) IsRoot() bool {
 	return b.parent == nil
 }
 
-func (b ChocolateBar) GetParent() *ChocolateBar {
+func (b chocolateBar) GetParent() CChocolateBar {
 	return b.parent
 }
 
-func (b ChocolateBar) GetLayout() LayoutType {
+func (b chocolateBar) GetScaling() Scaling {
+	return Scaling{b.X, b.Y}
+}
+
+func (b *chocolateBar) SetScaling(v Scaling) {
+	b.X = v.X
+	b.Y = v.Y
+}
+
+func (b chocolateBar) GetLayout() LayoutType {
 	return b.layoutType
 }
 
-func (b *ChocolateBar) setChocolate(v *Chocolate) {
+func (b *chocolateBar) setChocolate(v *Chocolate) {
 	b.choc = v
 	for _, c := range b.bars {
-		c.setChocolate(v)
+		c.(*chocolateBar).setChocolate(v)
 	}
 }
 
-func (b *ChocolateBar) SetChocolate(v *Chocolate) {
+func (b *chocolateBar) SetChocolate(v *Chocolate) {
 	if b.IsRoot() {
 		b.setChocolate(v)
 	} else {
@@ -281,37 +290,59 @@ func (b *ChocolateBar) SetChocolate(v *Chocolate) {
 	}
 }
 
-func (b ChocolateBar) CanFocus() bool {
+func (b chocolateBar) CanFocus() bool {
 	return b.actModel != nil
 }
 
-func (b ChocolateBar) InputOnSelect() bool {
+func (b chocolateBar) CanSelect() bool {
+	return b.selectable
+}
+
+func (b *chocolateBar) GetSelectables() []string {
+	var ret []string
+	for _, c := range b.bars {
+		ret = append(ret, c.GetSelectables()...)
+	}
+	if b.CanSelect() {
+		ret = append(ret, b.GetID())
+	}
+	if len(ret) == 0 && b.IsRoot() {
+		ret = append(ret, b.GetID())
+	}
+	return ret
+}
+
+func (b chocolateBar) GetBars() []CChocolateBar {
+	return b.bars
+}
+
+func (b chocolateBar) InputOnSelect() bool {
 	return b.inputOnSelect
 }
 
-func (b ChocolateBar) GetChoc() *Chocolate {
+func (b chocolateBar) GetChocolate() *Chocolate {
 	return b.choc
 }
 
-func (b ChocolateBar) HasModel() bool {
+func (b chocolateBar) HasModel() bool {
 	if b.actModel != nil {
 		return b.actModel.Model != nil
 	}
 	return false
 }
 
-func (b ChocolateBar) GetModel() tea.Model {
+func (b chocolateBar) GetModel() tea.Model {
 	if b.HasModel() {
 		return b.actModel.Model
 	}
 	return nil
 }
 
-func (b ChocolateBar) GetID() string {
+func (b chocolateBar) GetID() string {
 	return b.id
 }
 
-func (b *ChocolateBar) SelectModel(v string) {
+func (b *chocolateBar) SelectModel(v string) {
 	if b.models == nil {
 		return
 	}
@@ -320,7 +351,7 @@ func (b *ChocolateBar) SelectModel(v string) {
 	}
 }
 
-func (b *ChocolateBar) Resize(w, h int) {
+func (b *chocolateBar) Resize(w, h int) {
 	// if there is a frame set for the bar
 	// this has to be removed from the available
 	// content size
@@ -366,7 +397,7 @@ func (b *ChocolateBar) Resize(w, h int) {
 // so that it is possible to calculate the dynamic
 // sizes
 // TODO: Is there a better way to avoid calling models view?
-func (b *ChocolateBar) preRender() {
+func (b *chocolateBar) preRender() {
 	// skip hidden bars
 	if b.hidden {
 		return
@@ -407,7 +438,7 @@ func (b *ChocolateBar) preRender() {
 	// so go recursive to generate
 	// all preViews of models
 	for _, c := range b.bars {
-		c.preRender()
+		c.(*chocolateBar).preRender()
 	}
 
 	// all sub bars of this model are now pre rendered
@@ -431,7 +462,7 @@ func (b *ChocolateBar) preRender() {
 	}
 }
 
-func (b *ChocolateBar) recalcSizes() {
+func (b *chocolateBar) recalcSizes() {
 	// skip hidden bars
 	if b.hidden {
 		return
@@ -450,21 +481,21 @@ func (b *ChocolateBar) recalcSizes() {
 	}
 }
 
-func (b *ChocolateBar) recalcVerticalSizes() {
+func (b *chocolateBar) recalcVerticalSizes() {
 	// after pre render all leafs with models
 	// this must be a bar holding subs
 	// so go recursive till we reach the last
 	// layers
 	for _, c := range b.bars {
-		c.recalcSizes()
+		c.(*chocolateBar).recalcSizes()
 	}
 
 	// go over again and start calculation
 	totalParts := 0
 	totalParents := 0
 	for _, c := range b.bars {
-		if c.Y.IsParent() && !c.hidden {
-			totalParts += c.Y.GetValue()
+		if c.(*chocolateBar).Y.IsParent() && !c.(*chocolateBar).hidden {
+			totalParts += c.(*chocolateBar).Y.GetValue()
 			totalParents++
 		}
 	}
@@ -474,14 +505,14 @@ func (b *ChocolateBar) recalcVerticalSizes() {
 		partLast := (b.maxHeight - b.contentHeight) % totalParts
 
 		for _, c := range b.bars {
-			if c.Y.IsParent() && !c.hidden {
+			if c.(*chocolateBar).Y.IsParent() && !c.(*chocolateBar).hidden {
 				totalParents--
-				height := c.Y.GetValue() * partSize
+				height := c.(*chocolateBar).Y.GetValue() * partSize
 				if totalParents == 0 {
 					height += partLast
 				}
-				c.height = height - c.GetStyle().GetVerticalFrameSize()
-				b.contentHeight += c.height
+				c.(*chocolateBar).height = height - c.GetStyle().GetVerticalFrameSize()
+				b.contentHeight += c.(*chocolateBar).height
 			}
 		}
 	}
@@ -494,21 +525,21 @@ func (b *ChocolateBar) recalcVerticalSizes() {
 	b.preRendered = true
 }
 
-func (b *ChocolateBar) recalcHorizontalSizes() {
+func (b *chocolateBar) recalcHorizontalSizes() {
 	// after pre render all leafs with models
 	// this must be a bar holding subs
 	// so go recursive till we reach the last
 	// layers
 	for _, c := range b.bars {
-		c.recalcSizes()
+		c.(*chocolateBar).recalcSizes()
 	}
 
 	// go over again and start calculation
 	totalParts := 0
 	totalParents := 0
 	for _, c := range b.bars {
-		if c.X.IsParent() && !c.hidden {
-			totalParts += c.X.GetValue()
+		if c.(*chocolateBar).X.IsParent() && !c.(*chocolateBar).hidden {
+			totalParts += c.(*chocolateBar).X.GetValue()
 			totalParents++
 		}
 	}
@@ -518,14 +549,14 @@ func (b *ChocolateBar) recalcHorizontalSizes() {
 		partLast := (b.maxWidth - b.contentWidth) % totalParts
 
 		for _, c := range b.bars {
-			if c.X.IsParent() && !c.hidden {
+			if c.(*chocolateBar).X.IsParent() && !c.(*chocolateBar).hidden {
 				totalParents--
-				width := c.X.GetValue() * partSize
+				width := c.(*chocolateBar).X.GetValue() * partSize
 				if totalParents == 0 {
 					width += partLast
 				}
-				c.width = width - c.GetStyle().GetHorizontalFrameSize()
-				b.contentWidth += c.width
+				c.(*chocolateBar).width = width - c.GetStyle().GetHorizontalFrameSize()
+				b.contentWidth += c.(*chocolateBar).width
 			}
 		}
 	}
@@ -538,14 +569,14 @@ func (b *ChocolateBar) recalcHorizontalSizes() {
 	b.preRendered = true
 }
 
-func (b *ChocolateBar) finalizeSizing() {
+func (b *chocolateBar) finalizeSizing() {
 	// skip hidden bars
 	if b.hidden {
 		return
 	}
 
 	for _, c := range b.bars {
-		c.finalizeSizing()
+		c.(*chocolateBar).finalizeSizing()
 	}
 
 	if !b.IsRoot() {
@@ -570,7 +601,7 @@ func (b *ChocolateBar) finalizeSizing() {
 	}
 }
 
-func (b *ChocolateBar) render() {
+func (b *chocolateBar) render() {
 	b.preRender()
 	b.recalcSizes()
 	b.finalizeSizing()
@@ -590,11 +621,11 @@ func (b *ChocolateBar) render() {
 	}
 
 	for _, c := range b.bars {
-		c.render()
+		c.(*chocolateBar).render()
 	}
 }
 
-func (b *ChocolateBar) joinBars() {
+func (b *chocolateBar) joinBars() {
 	// skip hidden bars
 	if b.hidden {
 		return
@@ -612,12 +643,12 @@ func (b *ChocolateBar) joinBars() {
 	}
 }
 
-func (b *ChocolateBar) joinVerticalBars() {
+func (b *chocolateBar) joinVerticalBars() {
 	var bars []string
 	if !b.rendered {
 		for _, c := range b.bars {
-			c.joinBars()
-			if c.hidden {
+			c.(*chocolateBar).joinBars()
+			if c.(*chocolateBar).hidden {
 				continue
 			}
 			s := b.GetStyle().
@@ -626,7 +657,7 @@ func (b *ChocolateBar) joinVerticalBars() {
 				BorderLeft(false).
 				BorderRight(false).
 				Width(b.width)
-			bars = append(bars, s.Render(c.view))
+			bars = append(bars, s.Render(c.(*chocolateBar).view))
 		}
 		s := b.GetStyle()
 		if b.IsRoot() {
@@ -638,12 +669,12 @@ func (b *ChocolateBar) joinVerticalBars() {
 	b.rendered = true
 }
 
-func (b *ChocolateBar) joinHorizontalBars() {
+func (b *chocolateBar) joinHorizontalBars() {
 	var bars []string
 	if !b.rendered {
 		for _, c := range b.bars {
-			c.joinBars()
-			if c.hidden {
+			c.(*chocolateBar).joinBars()
+			if c.(*chocolateBar).hidden {
 				continue
 			}
 			s := b.GetStyle().
@@ -652,7 +683,7 @@ func (b *ChocolateBar) joinHorizontalBars() {
 				BorderLeft(false).
 				BorderRight(false).
 				Height(b.height)
-			bars = append(bars, s.Render(c.view))
+			bars = append(bars, s.Render(c.(*chocolateBar).view))
 		}
 		s := b.GetStyle()
 		if b.IsRoot() {
@@ -664,9 +695,9 @@ func (b *ChocolateBar) joinHorizontalBars() {
 	b.rendered = true
 }
 
-func (b *ChocolateBar) resetRender() {
+func (b *chocolateBar) resetRender() {
 	for _, c := range b.bars {
-		c.resetRender()
+		c.(*chocolateBar).resetRender()
 	}
 
 	// the root bar must not reset it's size
@@ -688,7 +719,7 @@ func (b *ChocolateBar) resetRender() {
 	b.view = ""
 }
 
-func (b *ChocolateBar) Render() string {
+func (b *chocolateBar) Render() string {
 	defer b.resetRender()
 
 	b.resetRender()
@@ -703,11 +734,11 @@ func (b *ChocolateBar) Render() string {
 	return b.view
 }
 
-func (b *ChocolateBar) Hide(v bool) {
+func (b *chocolateBar) Hide(v bool) {
 	b.hidden = v
 }
 
-func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
+func (b *chocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
@@ -723,7 +754,7 @@ func (b *ChocolateBar) defaultUpdateHandler(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
+func (b *chocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	cmds = append(cmds, b.defaultUpdateHandler(msg))
@@ -733,73 +764,73 @@ func (b *ChocolateBar) HandleUpdate(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-type ChocolateBarOptions func(*ChocolateBar)
+type ChocolateBarOptions func(*chocolateBar)
 
-func WithLayout(v LayoutType) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithLayout(v LayoutType) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.layoutType = v
 	}
 }
 
-func WithID(v string) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithID(v string) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.id = v
 	}
 }
 
-func WithModels(v map[string]*BarModel, a string) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithModels(v map[string]*BarModel, a string) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.models = v
 		b.actModel = v[a]
 		b.bars = nil
 	}
 }
 
-func WithModel(v *BarModel) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithModel(v *BarModel) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.actModel = v
 		b.bars = nil
 	}
 }
 
-func WithSelectable() func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithSelectable() func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.selectable = true
 	}
 }
 
-func WithXScaler(v Scaler) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithXScaler(v Scaler) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.X = v
 	}
 }
 
-func WithYScaler(v Scaler) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithYScaler(v Scaler) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.Y = v
 	}
 }
 
-func Hidden() func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func Hidden() func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.hidden = true
 	}
 }
 
-func WithFlavourCustomizeHandler(v BarFlavourCustomizeHandlerFct) func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithFlavourCustomizeHandler(v BarFlavourCustomizeHandlerFct) func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.FlavourCustomzieHandler = v
 	}
 }
 
-func WithInputOnSelect() func(*ChocolateBar) {
-	return func(b *ChocolateBar) {
+func WithInputOnSelect() func(*chocolateBar) {
+	return func(b *chocolateBar) {
 		b.inputOnSelect = true
 	}
 }
 
-func NewChocolateBar(bars []*ChocolateBar, opts ...ChocolateBarOptions) *ChocolateBar {
-	ret := &ChocolateBar{
+func NewChocolateBar(bars []CChocolateBar, opts ...ChocolateBarOptions) *chocolateBar {
+	ret := &chocolateBar{
 		id:            uuid.NewString(),
 		bars:          bars,
 		layoutType:    LIST,
@@ -819,7 +850,7 @@ func NewChocolateBar(bars []*ChocolateBar, opts ...ChocolateBarOptions) *Chocola
 	ret.Y = NewParentScaler(1)
 
 	for _, c := range bars {
-		c.parent = ret
+		c.(*chocolateBar).parent = ret
 	}
 
 	for _, opt := range opts {

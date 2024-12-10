@@ -48,14 +48,14 @@ func main() {
 		}),
 		chocolate.WithXScaler(chocolate.NewFixedScaler(60)),
 	)
-	containerBar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
+	containerBar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
 		thirdBar,
 		fourthBar,
 		fifthBar,
 	},
 		chocolate.WithLayout(chocolate.LIST),
 	)
-	bar := chocolate.NewChocolateBar([]*chocolate.ChocolateBar{
+	bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
 		firstBar,
 		secondBar,
 		containerBar,

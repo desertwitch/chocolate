@@ -8,11 +8,11 @@ import (
 )
 
 type selector struct {
-	barMap      map[string]*ChocolateBar
+	barMap      map[string]CChocolateBar
 	selectables []string
 	selectedIdx int
-	selected    *ChocolateBar
-	focused     *ChocolateBar
+	selected    CChocolateBar
+	focused     CChocolateBar
 }
 
 func (s *selector) next() {
@@ -31,26 +31,26 @@ func (s *selector) prev() {
 	s.selected = s.getByID(s.selectables[s.selectedIdx])
 }
 
-func (s selector) getByID(v string) *ChocolateBar {
+func (s selector) getByID(v string) CChocolateBar {
 	if b, ok := s.barMap[v]; ok {
 		return b
 	}
 	return nil
 }
 
-func (s selector) hasFocus(v *ChocolateBar) bool {
+func (s selector) hasFocus(v CChocolateBar) bool {
 	return s.focused == v
 }
 
-func (s selector) isSelected(v *ChocolateBar) bool {
+func (s selector) isSelected(v CChocolateBar) bool {
 	return s.selected == v
 }
 
-func (s selector) getSelected() *ChocolateBar {
+func (s selector) getSelected() CChocolateBar {
 	return s.selected
 }
 
-func (s selector) getFocused() *ChocolateBar {
+func (s selector) getFocused() CChocolateBar {
 	return s.focused
 }
 
@@ -64,14 +64,16 @@ func (s *selector) unfocus() {
 	s.focused = nil
 }
 
-func (s *selector) selectBar(v *ChocolateBar) {
+func (s *selector) selectBar(v CChocolateBar) {
 	s.selected = v
 }
 
-func (s *selector) forceSelect(v *ChocolateBar) {
+func (s *selector) forceSelect(v CChocolateBar) {
 	s.selected = v
 	s.focused = v
 }
+
+type rootBar struct{}
 
 // Chocolate is the main entry point and acts as
 // a control handler to work with the layouts
@@ -85,7 +87,7 @@ type Chocolate struct {
 	KeyMap KeyMap
 
 	// root bar
-	bar *ChocolateBar
+	bar CChocolateBar
 
 	// bar selector used for easy access
 	// and tracking of input focus and
@@ -190,11 +192,11 @@ func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (c Chocolate) GetBarByID(v string) *ChocolateBar {
+func (c Chocolate) GetBarByID(v string) CChocolateBar {
 	return c.barctl.getByID(v)
 }
 
-func (c Chocolate) GetFocused() *ChocolateBar {
+func (c Chocolate) GetFocused() CChocolateBar {
 	ret := c.barctl.focused
 	if ret != nil {
 		return ret
@@ -207,26 +209,26 @@ func (c Chocolate) GetFocused() *ChocolateBar {
 	return nil
 }
 
-func (c Chocolate) GetSelected() *ChocolateBar {
+func (c Chocolate) GetSelected() CChocolateBar {
 	return c.barctl.selected
 }
 
-func (c Chocolate) IsSelected(v *ChocolateBar) bool {
+func (c Chocolate) IsSelected(v CChocolateBar) bool {
 	return c.barctl.isSelected(v)
 }
 
-func (c Chocolate) IsFocused(v *ChocolateBar) bool {
+func (c Chocolate) IsFocused(v CChocolateBar) bool {
 	return c.barctl.hasFocus(v)
 }
 
-func (c *Chocolate) ForceSelect(v *ChocolateBar) {
+func (c *Chocolate) ForceSelect(v CChocolateBar) {
 	if !c.disableSelector {
 		return
 	}
 	c.barctl.forceSelect(v)
 }
 
-func (c *Chocolate) Select(v *ChocolateBar) {
+func (c *Chocolate) Select(v CChocolateBar) {
 	c.barctl.selectBar(v)
 }
 
@@ -234,29 +236,8 @@ func (c Chocolate) View() string {
 	return c.bar.Render()
 }
 
-func getSelectables(v *ChocolateBar) []string {
-	ret := []string{}
-
-	if v.selectable {
-		ret = append(ret, v.id)
-	}
-
-	for _, b := range v.bars {
-		ret = append(ret, getSelectables(b)...)
-	}
-
-	return ret
-}
-
-func buildDefaultSelector(v *ChocolateBar) (*selector, error) {
-	selectables := getSelectables(v)
-
-	if len(selectables) == 0 {
-		// if nothing is selectable
-		// at least the root bar must be
-		v.selectable = true
-		selectables = append(selectables, v.id)
-	}
+func buildDefaultSelector(v CChocolateBar) (*selector, error) {
+	selectables := v.GetSelectables()
 
 	barMap, err := initBarMap(v)
 	if err != nil {
@@ -273,15 +254,15 @@ func buildDefaultSelector(v *ChocolateBar) (*selector, error) {
 	return ret, nil
 }
 
-func initBarMap(v *ChocolateBar) (map[string]*ChocolateBar, error) {
-	ret := make(map[string]*ChocolateBar)
+func initBarMap(v CChocolateBar) (map[string]CChocolateBar, error) {
+	ret := make(map[string]CChocolateBar)
 
-	if _, ok := ret[v.id]; ok {
-		return nil, fmt.Errorf("ID: %s already exists", v.id)
+	if _, ok := ret[v.GetID()]; ok {
+		return nil, fmt.Errorf("ID: %s already exists", v.GetID())
 	}
-	ret[v.id] = v
+	ret[v.GetID()] = v
 
-	for _, b := range v.bars {
+	for _, b := range v.GetBars() {
 		if submap, err := initBarMap(b); err != nil {
 			return nil, err
 		} else {
@@ -297,7 +278,7 @@ func initBarMap(v *ChocolateBar) (map[string]*ChocolateBar, error) {
 	return ret, nil
 }
 
-func (c *Chocolate) initBar(v *ChocolateBar) error {
+func (c *Chocolate) initBar(v CChocolateBar) error {
 	if v == nil || !v.IsRoot() {
 		return fmt.Errorf("Not a root bar")
 	}
@@ -313,29 +294,14 @@ func (c *Chocolate) initBar(v *ChocolateBar) error {
 
 type chocolateOptions func(*Chocolate)
 
-func WithSelector(v []string, s int) func(*Chocolate) {
-	return func(c *Chocolate) {
-		if len(v) == 0 {
-			return
-		}
-		if s < 0 || s >= len(v) {
-			s = 0
-		}
-
-		c.barctl.selectables = v
-		c.barctl.selectedIdx = s - 1
-		c.barctl.next()
-	}
-}
-
-func WithAutofocus(v *ChocolateBar) func(*Chocolate) {
+func WithAutofocus(v CChocolateBar) func(*Chocolate) {
 	return func(c *Chocolate) {
 		c.disableSelector = true
 		c.ForceSelect(v)
 	}
 }
 
-func NewChocolate(bar *ChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
+func NewChocolate(bar CChocolateBar, opts ...chocolateOptions) (*Chocolate, error) {
 	ret := &Chocolate{
 		KeyMap:          DefaultKeyMap(),
 		disableSelector: false,
