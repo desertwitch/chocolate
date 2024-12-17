@@ -52,6 +52,37 @@ func (t *Tree[K, T]) Add(id, pid K, data T) (added bool, exists bool) {
 	return
 }
 
+func (t *Tree[K, T]) AddChild(child Node[K, T]) (added bool, exists bool) {
+	if t.keys.find(child.GetID()) != nil {
+		exists = true
+		return
+	}
+
+	if t.root == nil {
+		t.root = child
+	} else {
+		parent := t.keys.find(child.GetParentID())
+		if parent == nil {
+			if t.root.GetParentID() == child.GetID() {
+				t.reroot(child)
+			} else {
+				return
+			}
+		} else {
+			if t.root.GetParentID() == child.GetID() {
+				return
+			}
+			child.setParent(parent)
+			parent.AddChildren(child)
+		}
+	}
+
+	t.keys.insert(child.GetID(), child)
+
+	added = true
+	return
+}
+
 func (t *Tree[K, T]) reroot(root Node[K, T]) {
 	t.root.setParent(root)
 	root.AddChildren(t.root)

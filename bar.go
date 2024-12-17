@@ -859,3 +859,484 @@ func NewChocolateBar(bars []CChocolateBar, opts ...ChocolateBarOptions) *chocola
 
 	return ret
 }
+
+type BarStyleCustomizeHanleFct func(ChocolateBar, lipgloss.Style) func() lipgloss.Style
+
+// chocolateBar is the main workhorse that will
+// provide most of the functionality and is doing
+// all the calculations and handling of the layout
+// it further holds the tea.Models and wrap the
+// calls around, so that it acts at the end just
+// a view container
+type baseBar struct {
+	Scaling
+	id string
+
+	// backref to the Chocolate the bar
+	// belongs to
+	// this is used to centralize some
+	// parts for the unified theming
+	// and controls like selector
+	chocolate *NChocolate
+
+	// possible maximum content size
+	// This is used to have a maximum for the content
+	// the real size will be calculated during the
+	// view rendering as it is the only possible
+	// place to handle the scaling which depends on
+	// possible dynmic content
+	maxWidth  int
+	maxHeight int
+
+	// content size after calculation of the whole
+	// layout
+	width  int
+	height int
+
+	// pre rendered view with maximum content sizes
+	// this is used to get the correct sizes of the
+	// models view to be used for dynamic scaling
+	// and the following calculations
+	preRendered   bool
+	preView       string
+	contentWidth  int
+	contentHeight int
+
+	// rendered
+	view     string
+	rendered bool
+
+	// flavourPrefs generation function
+	// this can be used to override the default
+	// flavour preferences
+	StyleCustomizeHandler BarStyleCustomizeHanleFct
+
+	// custom update function
+	// this can be used to override the default
+	// behavior which will only let the bar
+	// take input focus when a model is attached
+	// and just pass the tea messages through
+	// UpdateHandlerFct func(*ChocolateBar) func(tea.Msg) tea.Cmd
+
+	// if the bar is hidden
+	// hidden bars are removed from the layout
+	// rendering and the space is used for the
+	// other bars
+	hidden bool
+
+	// if this bar can be selected
+	selectable bool
+	// if this bar should receive input when
+	// selected
+	inputOnSelect bool
+}
+
+func (b *baseBar) Has(v interface{}) bool {
+	checks, ok := v.(*checkAttributes)
+	if !ok {
+		return false
+	}
+
+	for k, c := range checks.checks {
+		switch k {
+		case CA_X_SCALING:
+			delete(checks.checks, CA_X_SCALING)
+			if !b.X.Is(c.(ScalingType)) {
+				return false
+			}
+		case CA_Y_SCALING:
+			delete(checks.checks, CA_Y_SCALING)
+			if !b.Y.Is(c.(ScalingType)) {
+				return false
+			}
+		case CA_CAN_SELECT:
+			delete(checks.checks, CA_CAN_SELECT)
+			if !b.selectable {
+				return false
+			}
+		case CA_INPUT_ON_SELECT:
+			delete(checks.checks, CA_INPUT_ON_SELECT)
+			if !b.inputOnSelect {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (b baseBar) GetID() string {
+	return b.id
+}
+
+func (b *baseBar) GetStyle() lipgloss.Style {
+	ret := flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER)
+
+	// root
+	if b.getChocolate().IsRoot(b) {
+		ret = flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
+	}
+
+	// selected and not root
+	if b.getChocolate().IsSelected(b) && !b.getChocolate().IsRoot(b) {
+		ret = ret.BorderForeground(flavour.GetColorNoErr(flavour.COLOR_SECONDARY))
+	}
+
+	// focused and not root
+	if b.getChocolate().HasFocus(b) && !b.getChocolate().IsRoot(b) {
+		ret = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY).
+			BorderBackground(flavour.GetColorNoErr(flavour.COLOR_PRIMARY_BG))
+	}
+
+	if b.StyleCustomizeHandler != nil {
+		ret = b.StyleCustomizeHandler(b, ret)()
+	}
+
+	return ret
+}
+
+func (b *baseBar) Hide(v bool) {
+	b.hidden = v
+}
+
+func (b *baseBar) Resize(w, h int) {
+	// if there is a frame set for the bar
+	// this has to be removed from the available
+	// content size
+	width := w - b.GetStyle().GetHorizontalFrameSize()
+	height := h - b.GetStyle().GetVerticalFrameSize()
+
+	// if this is a fixed scaling than we don't have
+	// to calculate anything
+	if b.X.IsFixed() {
+		width = b.X.GetValue()
+		// b.width = width
+	}
+	if b.Y.IsFixed() {
+		height = b.Y.GetValue()
+		// b.height = height
+	}
+
+	b.maxWidth = width
+	b.maxHeight = height
+
+	// the root bar doesn't have to rescale itself
+	if b.getChocolate().IsRoot(b) {
+		b.width = width
+		b.height = height
+	}
+}
+
+func (b baseBar) getChocolate() *NChocolate {
+	return b.chocolate
+}
+
+func (b *baseBar) setChocolate(v *NChocolate) {
+	b.chocolate = v
+}
+
+func (b *baseBar) setID(v string) {
+	b.id = v
+}
+
+func (b *baseBar) setXScaler(v Scaler) {
+	b.X = v
+}
+
+func (b *baseBar) setYScaler(v Scaler) {
+	b.Y = v
+}
+
+func (b *baseBar) setSelectable() {
+	b.selectable = true
+}
+
+func (b *baseBar) setInputOnSelect() {
+	b.inputOnSelect = true
+}
+
+func (b baseBar) getContentSize() (int, int) {
+	return b.contentWidth, b.contentHeight
+}
+
+func (b *baseBar) setContentSize(w, h int) {
+	b.contentWidth = w
+	b.contentHeight = h
+}
+
+func (b *baseBar) preRender(parent ChocolateBar) bool {
+	if b.getChocolate().IsRoot(b) ||
+		b.hidden ||
+		b.preRendered {
+		return true
+	}
+	return false
+}
+
+type ChocolateBarOption func(ChocolateBar)
+
+func SetID(v string) ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.setID(v)
+	}
+}
+
+func SetXScaler(v Scaler) ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.setXScaler(v)
+	}
+}
+
+func SetYScaler(v Scaler) ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.setYScaler(v)
+	}
+}
+
+func SetHidden() ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.Hide(true)
+	}
+}
+
+func SetSelectable() ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.setSelectable()
+	}
+}
+
+func SetInputOnSelect() ChocolateBarOption {
+	return func(c ChocolateBar) {
+		c.setInputOnSelect()
+	}
+}
+
+func newBaseBar(opts ...ChocolateBarOption) *baseBar {
+	ret := &baseBar{
+		id:            uuid.NewString(),
+		preRendered:   false,
+		preView:       "",
+		view:          "",
+		width:         0,
+		height:        0,
+		contentWidth:  0,
+		contentHeight: 0,
+		hidden:        false,
+		selectable:    false,
+		inputOnSelect: false,
+	}
+	ret.setXScaler(NewParentScaler(1))
+	ret.setYScaler(NewParentScaler(1))
+
+	for _, opt := range opts {
+		opt(ret)
+	}
+
+	return ret
+}
+
+type layoutBar struct {
+	baseBar
+
+	layout     LayoutType
+	totalParts int
+}
+
+func (b layoutBar) getTotalParts() int {
+	return b.totalParts
+}
+
+func (b *layoutBar) setTotalParts(v int) {
+	b.totalParts = v
+}
+
+func (b *layoutBar) Has(v interface{}) bool {
+	checks, ok := v.(checkAttributes)
+	if !ok {
+		return false
+	}
+
+	if l, ok := checks.checks[CA_LAYOUT]; ok {
+		if l != b.layout {
+			return false
+		}
+		delete(checks.checks, CA_LAYOUT)
+	}
+
+	if !b.baseBar.Has(&checks) {
+		return false
+	}
+
+	return true
+}
+
+func (b *layoutBar) preRender(parent ChocolateBar) bool {
+	pbar, ok := parent.(LayoutBar)
+	if !ok {
+		return false
+	}
+
+	if b.baseBar.preRender(parent) {
+		return true
+	}
+
+	pw, ph := pbar.getContentSize()
+	ptotalParts := pbar.getTotalParts()
+
+	t, v := b.X.Get()
+	switch t {
+	case DYNAMIC:
+		pw += b.contentWidth + b.GetStyle().GetHorizontalFrameSize()
+	case FIXED:
+		pw += v + b.GetStyle().GetHorizontalFrameSize()
+	case PARENT:
+		if pbar.GetLayout() == LINEAR {
+			ptotalParts += v
+		}
+	}
+	t, v = b.Y.Get()
+	switch t {
+	case DYNAMIC:
+		ph += b.contentHeight + b.GetStyle().GetVerticalFrameSize()
+	case FIXED:
+		ph += v + b.GetStyle().GetVerticalFrameSize()
+	case PARENT:
+		if pbar.GetLayout() == LIST {
+			ptotalParts += v
+		}
+	}
+
+	pbar.setContentSize(pw, ph)
+	pbar.setTotalParts(ptotalParts)
+
+	return true
+}
+
+func NewLayoutBar(layout LayoutType, opts ...ChocolateBarOption) ChocolateBar {
+	ret := &layoutBar{
+		baseBar: *newBaseBar(opts...),
+		layout:  layout,
+	}
+
+	return ret
+}
+
+type modelBar struct {
+	baseBar
+
+	// models to select from
+	models map[string]*BarModel
+	// running actModel
+	actModel *BarModel
+}
+
+func (b *modelBar) Has(v interface{}) bool {
+	checks, ok := v.(checkAttributes)
+	if !ok {
+		return false
+	}
+
+	if _, ok := checks.checks[CA_CAN_FOCUS]; ok {
+		if b.actModel == nil {
+			return false
+		}
+		delete(checks.checks, CA_CAN_FOCUS)
+	}
+	if _, ok := checks.checks[CA_IS_MODELBAR]; ok {
+		if b.actModel == nil {
+			return false
+		}
+		delete(checks.checks, CA_IS_MODELBAR)
+	}
+
+	if !b.baseBar.Has(&checks) {
+		return false
+	}
+	return true
+}
+
+func (b *modelBar) Resize(w, h int) {
+	b.baseBar.Resize(w, h)
+
+	if b.models != nil {
+		for _, m := range b.models {
+			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
+		}
+	} else if b.actModel != nil {
+		b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
+	}
+}
+
+func (b modelBar) GetModel() tea.Model {
+	return b.actModel.Model
+}
+
+func (b *modelBar) SelectModel(v string) {
+	if b.models == nil {
+		return
+	}
+	if m, ok := b.models[v]; ok {
+		b.actModel = m
+	}
+}
+
+func (b *modelBar) preRender(parent ChocolateBar) bool {
+	if b.baseBar.preRender(parent) {
+		return true
+	}
+
+	pbar, ok := parent.(LayoutBar)
+	if !ok {
+		return false
+	}
+
+	if !b.preRendered {
+		b.preView = b.actModel.Model.View()
+		b.contentWidth, b.contentHeight = lipgloss.Size(b.preView)
+
+		pw, ph := parent.getContentSize()
+
+		b.preRendered = true
+		t, v := b.X.Get()
+		switch t {
+		case DYNAMIC:
+			pw += b.contentWidth + b.GetStyle().GetHorizontalFrameSize()
+			b.width = b.contentWidth
+		case FIXED:
+			pw += v + b.GetStyle().GetHorizontalFrameSize()
+			b.width = v
+		}
+		t, v = b.Y.Get()
+		switch t {
+		case DYNAMIC:
+			ph += b.contentHeight + b.GetStyle().GetVerticalFrameSize()
+			b.height = b.contentHeight
+		case FIXED:
+			ph += v + b.GetStyle().GetVerticalFrameSize()
+			b.height = v
+		}
+
+		parent.setContentSize(pw, ph)
+	}
+	return true
+}
+
+func NewModelBar(model *BarModel, opts ...ChocolateBarOption) ChocolateBar {
+	ret := &modelBar{
+		baseBar:  *newBaseBar(opts...),
+		actModel: model,
+	}
+
+	return ret
+}
+
+func NewMultiModelBar(act string, models map[string]*BarModel, opts ...ChocolateBarOption) ChocolateBar {
+	ret := &modelBar{
+		baseBar:  *newBaseBar(opts...),
+		models:   models,
+		actModel: models[act],
+	}
+
+	return ret
+}

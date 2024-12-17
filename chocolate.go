@@ -3,6 +3,8 @@ package chocolate
 import (
 	"fmt"
 
+	"github.com/mfulz/chocolate/internal/tree"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -315,6 +317,103 @@ func NewChocolate(bar CChocolateBar, opts ...chocolateOptions) (*Chocolate, erro
 	if ret.barctl, err = buildDefaultSelector(bar); err != nil {
 		return nil, err
 	}
+
+	for _, opt := range opts {
+		opt(ret)
+	}
+
+	return ret, nil
+}
+
+type NChocolate struct {
+	// Key mappings
+	KeyMap KeyMap
+
+	// bar tree
+	tree *tree.Tree[string, ChocolateBar]
+
+	// navigation
+	selectables []string
+	selectIdx   int
+	selected    ChocolateBar
+	focused     bool
+}
+
+func (c *NChocolate) AddBar(pid string, bar ChocolateBar) error {
+	// TODO: error handling
+	bar.setChocolate(c)
+	c.tree.Add(bar.GetID(), pid, bar)
+
+	c.selectables = []string{}
+	selectedCheck := newCheckAtrributes().CheckCanSelect(true)
+	for selectable := range c.tree.FindAllBy(selectedCheck) {
+		c.selectables = append(c.selectables, selectable.GetData().GetID())
+	}
+
+	return nil
+}
+
+func (c NChocolate) IsRoot(bar ChocolateBar) bool {
+	return c.tree.Root().GetData().GetID() == bar.GetID()
+}
+
+func (c NChocolate) IsSelected(bar ChocolateBar) bool {
+	if c.selected == nil {
+		return false
+	}
+	return c.selected.GetID() == bar.GetID()
+}
+
+func (c NChocolate) HasFocus(bar ChocolateBar) bool {
+	return c.IsSelected(bar) && c.focused
+}
+
+func (c *NChocolate) Next() {
+	c.selectIdx++
+	if c.selectIdx >= len(c.selectables) {
+		c.selectIdx = 0
+	}
+	if selected, ok := c.tree.Find(c.selectables[c.selectIdx]); !ok {
+		c.selectIdx--
+		return
+	} else {
+		c.selected = selected.GetData()
+	}
+}
+
+func (c *NChocolate) Prev() {
+	c.selectIdx--
+	if c.selectIdx < 0 {
+		c.selectIdx = len(c.selectables) - 1
+	}
+	if selected, ok := c.tree.Find(c.selectables[c.selectIdx]); !ok {
+		c.selectIdx++
+		return
+	} else {
+		c.selected = selected.GetData()
+	}
+}
+
+type chocolateOption func(*NChocolate)
+
+func SetLayout(v LayoutType) chocolateOption {
+	return func(c *NChocolate) {
+		c.tree.Root().GetData().(LayoutBar).SetLayout(v)
+	}
+}
+
+func NewNChocolate(opts ...chocolateOption) (*NChocolate, error) {
+	ret := &NChocolate{
+		KeyMap: DefaultKeyMap(),
+		tree:   tree.NewTree[string, ChocolateBar](),
+	}
+
+	rootBar := NewLayoutBar(LIST,
+		SetID("root"),
+	)
+	rootBar.setChocolate(ret)
+
+	ret.tree.Add("root", "", rootBar)
 
 	for _, opt := range opts {
 		opt(ret)

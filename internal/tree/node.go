@@ -67,3 +67,11 @@ func (n *node[K, T]) GetData() T {
 func (n *node[K, T]) SetData(data T) {
 	n.data = data
 }
+
+func NewNode[K comparable, T AttributeSelector](id, pid K, data T) Node[K, T] {
+	return &node[K, T]{
+		id:   id,
+		pid:  pid,
+		data: data,
+	}
+}
