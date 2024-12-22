@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/mfulz/chocolate"
 	flavour "github.com/mfulz/chocolate/flavour"
 )
@@ -118,79 +117,79 @@ func (t mainModel) Init() tea.Cmd                           { return nil }
 func (t mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t mainModel) View() string                            { return string(t) }
 
-var menuBarFlavourCustomizer = func(
-	b chocolate.CChocolateBar,
-	m tea.Model, s lipgloss.Style,
-) func() lipgloss.Style {
-	return func() lipgloss.Style {
-		return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER).
-			MarginTop(1).
-			MarginLeft(3).
-			MarginRight(3)
-	}
-}
-
-var mainBarUpdateHandler = func(b chocolate.CChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
-	return func(msg tea.Msg) tea.Cmd {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch msg.String() {
-			case "q", "esc":
-				b.SelectModel("dummy")
-				b.GetChocolate().ForceSelect(b.GetChocolate().GetBarByID("menu"))
-			}
-		}
-		return nil
-	}
-}
+// var menuBarFlavourCustomizer = func(
+// 	b chocolate.CChocolateBar,
+// 	m tea.Model, s lipgloss.Style,
+// ) func() lipgloss.Style {
+// 	return func() lipgloss.Style {
+// 		return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY_NOBORDER).
+// 			MarginTop(1).
+// 			MarginLeft(3).
+// 			MarginRight(3)
+// 	}
+// }
+//
+// var mainBarUpdateHandler = func(b chocolate.CChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
+// 	return func(msg tea.Msg) tea.Cmd {
+// 		switch msg := msg.(type) {
+// 		case tea.KeyMsg:
+// 			switch msg.String() {
+// 			case "q", "esc":
+// 				b.SelectModel("dummy")
+// 				b.GetChocolate().ForceSelect(b.GetChocolate().GetBarByID("menu"))
+// 			}
+// 		}
+// 		return nil
+// 	}
+// }
 
 func main() {
-	mainDummy := mainModel("")
-	mainFirst := mainModel("first")
-	mainSecond := mainModel("second")
-
-	mainModels := make(map[string]*chocolate.BarModel)
-	mainModels["dummy"] = &chocolate.BarModel{Model: mainDummy}
-	mainModels["first"] = &chocolate.BarModel{Model: mainFirst, UpdateHandlerFct: mainBarUpdateHandler}
-	mainModels["second"] = &chocolate.BarModel{Model: mainSecond, UpdateHandlerFct: mainBarUpdateHandler}
-
-	mainContentBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithID("main"),
-		chocolate.WithModels(mainModels, "dummy"),
-	)
-
-	menuModel := NewMenuModel("Main Menu",
-		[]list.Item{
-			NewMenuModel("First", nil, "first"),
-			NewMenuModel("Second", nil, "second"),
-		},
-		"",
-	)
-
-	menuBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model:                   menuModel,
-			FlavourCustomizeHandler: menuBarFlavourCustomizer,
-		}),
-		chocolate.WithID("menu"),
-		chocolate.WithXScaler(chocolate.NewFixedScaler(20)),
-	)
-
-	bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
-		menuBar,
-		mainContentBar,
-	},
-		chocolate.WithLayout(chocolate.LINEAR),
-	)
-
-	if m, err := chocolate.NewChocolate(bar,
-		chocolate.WithAutofocus(menuBar),
-	); err != nil {
-		panic(err)
-	} else {
-		if _, err := tea.NewProgram(m,
-			tea.WithAltScreen()).Run(); err != nil {
-			fmt.Println(err)
-		}
-	}
+	// mainDummy := mainModel("")
+	// mainFirst := mainModel("first")
+	// mainSecond := mainModel("second")
+	//
+	// mainModels := make(map[string]*chocolate.BarModel)
+	// mainModels["dummy"] = &chocolate.BarModel{Model: mainDummy}
+	// mainModels["first"] = &chocolate.BarModel{Model: mainFirst, UpdateHandlerFct: mainBarUpdateHandler}
+	// mainModels["second"] = &chocolate.BarModel{Model: mainSecond, UpdateHandlerFct: mainBarUpdateHandler}
+	//
+	// mainContentBar := chocolate.NewChocolateBar(nil,
+	// 	chocolate.WithID("main"),
+	// 	chocolate.WithModels(mainModels, "dummy"),
+	// )
+	//
+	// menuModel := NewMenuModel("Main Menu",
+	// 	[]list.Item{
+	// 		NewMenuModel("First", nil, "first"),
+	// 		NewMenuModel("Second", nil, "second"),
+	// 	},
+	// 	"",
+	// )
+	//
+	// menuBar := chocolate.NewChocolateBar(nil,
+	// 	chocolate.WithModel(&chocolate.BarModel{
+	// 		Model:                   menuModel,
+	// 		FlavourCustomizeHandler: menuBarFlavourCustomizer,
+	// 	}),
+	// 	chocolate.WithID("menu"),
+	// 	chocolate.WithXScaler(chocolate.NewFixedScaler(20)),
+	// )
+	//
+	// bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
+	// 	menuBar,
+	// 	mainContentBar,
+	// },
+	// 	chocolate.WithLayout(chocolate.LINEAR),
+	// )
+	//
+	// if m, err := chocolate.NewChocolate(bar,
+	// 	chocolate.WithAutofocus(menuBar),
+	// ); err != nil {
+	// 	panic(err)
+	// } else {
+	// 	if _, err := tea.NewProgram(m,
+	// 		tea.WithAltScreen()).Run(); err != nil {
+	// 		fmt.Println(err)
+	// 	}
+	// }
 }

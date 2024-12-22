@@ -5,129 +5,148 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type CChocolateBar interface {
-	GetID() string
-	IsRoot() bool
-	GetParent() CChocolateBar
-	GetLayout() LayoutType
-	CanFocus() bool
-	CanSelect() bool
-	GetSelectables() []string
-	InputOnSelect() bool
-	SetChocolate(*Chocolate)
-	GetChocolate() *Chocolate
-	Resize(int, int)
-	GetStyle() lipgloss.Style
-	GetScaling() Scaling
-	SetScaling(Scaling)
-	GetModel() tea.Model
-	SelectModel(string)
-	Render() string
-	GetBars() []CChocolateBar
-	Hide(bool)
-	HandleUpdate(tea.Msg) tea.Cmd
-}
+// A LayoutType defines the base direction of the bar
+type LayoutType int
 
-type CheckAttributes int
-
+// Layout types
 const (
-	CA_LAYOUT CheckAttributes = iota
-	CA_X_SCALING
-	CA_Y_SCALING
-	CA_CAN_SELECT
-	CA_CAN_FOCUS
-	CA_INPUT_ON_SELECT
-	CA_IS_MODELBAR
+	LIST   LayoutType = iota // will define a vertical arranged layout
+	LINEAR                   // will define a horizontal arranged layout
 )
 
-type checkAttributes struct {
-	checks map[CheckAttributes]interface{}
-}
+// A ScalingType defines how the ChocolateBar will be scaled
+type ScalingType int
 
-func (c checkAttributes) CheckLayout(v LayoutType) checkAttributes {
-	c.checks[CA_LAYOUT] = v
-	return c
-}
+// Scaling types
+const (
+	PARENT  ScalingType = iota // will fill up the available size
+	DYNAMIC                    // will grow as big as the content is
+	FIXED                      // is a fixed size
+)
 
-func (c checkAttributes) CheckXScaling(v ScalingType) checkAttributes {
-	c.checks[CA_X_SCALING] = v
-	return c
-}
+type ScalingAxis int
 
-func (c checkAttributes) CheckYScaling(v ScalingType) checkAttributes {
-	c.checks[CA_Y_SCALING] = v
-	return c
-}
+const (
+	X ScalingAxis = iota
+	Y
+)
 
-func (c checkAttributes) CheckCanSelect() checkAttributes {
-	c.checks[CA_CAN_SELECT] = true
-	return c
-}
-
-func (c checkAttributes) CheckCanFocus() checkAttributes {
-	c.checks[CA_CAN_FOCUS] = true
-	return c
-}
-
-func (c checkAttributes) CheckInputOnSelect() checkAttributes {
-	c.checks[CA_INPUT_ON_SELECT] = true
-	return c
-}
-
-func (c checkAttributes) CheckIsModelBar() checkAttributes {
-	c.checks[CA_IS_MODELBAR] = true
-	return c
-}
-
-func newCheckAtrributes() checkAttributes {
-	return checkAttributes{
-		checks: make(map[CheckAttributes]interface{}),
-	}
-}
-
-type ChocolateBar interface {
-	Has(interface{}) bool
-	GetID() string
+type BarStyler interface {
 	GetStyle() lipgloss.Style
-	// IsRoot() bool
-	// GetParent() CChocolateBar
-	// CanSelect() bool
-	// InputOnSelect() bool
-	// SetChocolate(*Chocolate)
-	// GetChocolate() *Chocolate
-	// Resize(int, int)
-	// GetScaling() Scaling
-	// SetScaling(Scaling)
-	// Render() string
-	// GetBars() []ChocolateBar
-	Hide(bool)
-	// HandleUpdate(tea.Msg) tea.Cmd
-
-	// new
-	getChocolate() *NChocolate
-	setChocolate(*NChocolate)
-
-	setID(string)
-	setXScaler(Scaler)
-	setYScaler(Scaler)
-	setSelectable()
-	setInputOnSelect()
-
-	getContentSize() (int, int)
-	setContentSize(int, int)
-	preRender(ChocolateBar) bool
 }
 
-type LayoutBar interface {
-	ChocolateBar
+type BarSelector interface {
+	GetID() string
+	SetID(id string)
+	IsHidden() bool
+	IsSelectable() bool
+}
+
+type BarScaler interface {
+	GetScaler(axis ScalingAxis) (ScalingType, int)
+	SetScaler(axis ScalingAxis, scalingType ScalingType, value int)
+}
+
+func IsXFixed(barScaler BarScaler) bool {
+	t, _ := barScaler.GetScaler(X)
+	return t == FIXED
+}
+
+func IsXParent(barScaler BarScaler) bool {
+	t, _ := barScaler.GetScaler(X)
+	return t == PARENT
+}
+
+func GetXValue(barScaler BarScaler) int {
+	_, v := barScaler.GetScaler(X)
+	return v
+}
+
+func IsYFixed(barScaler BarScaler) bool {
+	t, _ := barScaler.GetScaler(Y)
+	return t == FIXED
+}
+
+func IsYParent(barScaler BarScaler) bool {
+	t, _ := barScaler.GetScaler(Y)
+	return t == PARENT
+}
+
+func GetYValue(barScaler BarScaler) int {
+	_, v := barScaler.GetScaler(Y)
+	return v
+}
+
+type BarController interface {
+	Hide(value bool)
+	Selectable(value bool)
+}
+
+type BarRenderer interface {
+	Resize(width, height int)
+	PreRender() bool
+	Render()
+	GetView() string
+}
+
+type BarSizer interface {
+	GetSize() (width, height int)
+	SetSize(width, height int)
+}
+
+func SetWidth(barSizer BarSizer, width int) {
+	barSizer.SetSize(width, -1)
+}
+
+func SetHeight(barSizer BarSizer, height int) {
+	barSizer.SetSize(-1, height)
+}
+
+type BarMaxSizer interface {
+	GetMaxSize() (width, height int)
+}
+
+type BarContentSizer interface {
+	GetContentSize() (width, height int)
+}
+
+type BarParent interface {
+	BarSizer
+	BarMaxSizer
+}
+
+type BarChild interface {
+	BarScaler
+	BarSelector
+	BarSizer
+	BarContentSizer
+	GetView() string
+}
+
+type BarLayout interface {
 	GetLayout() LayoutType
 	SetLayout(LayoutType)
-	getTotalParts() int
-	setTotalParts(int)
 }
 
-type ModelBar interface {
-	ChocolateBar
+type BarModel interface {
 	GetModel() tea.Model
 	SelectModel(string)
+}
+
+type ChocolateSelector interface {
+	IsSelected(barSelector BarSelector) bool
+	IsRoot(barSelector BarSelector) bool
+	IsFocused(barSelector BarSelector) bool
+	GetParent(barSelector BarSelector) BarParent
+	GetChildren(barSelector BarSelector) []BarChild
+}
+
+type NChocolateBar interface {
+	BarScaler
+	BarSelector
+	BarRenderer
+	BarSizer
+	BarMaxSizer
+	BarContentSizer
+	SetBarChocolate(barChocolate ChocolateSelector)
 }

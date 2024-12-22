@@ -1,10 +1,6 @@
 package tree
 
-type AttributeSelector interface {
-	Has(interface{}) bool
-}
-
-type Node[K comparable, T AttributeSelector] interface {
+type Node[K comparable, T any] interface {
 	GetID() K
 	GetParentID() K
 	GetChildren() []Node[K, T]
@@ -16,7 +12,7 @@ type Node[K comparable, T AttributeSelector] interface {
 	SetData(T)
 }
 
-type node[K comparable, T AttributeSelector] struct {
+type node[K comparable, T any] struct {
 	id       K
 	pid      K
 	parent   Node[K, T]
@@ -68,7 +64,7 @@ func (n *node[K, T]) SetData(data T) {
 	n.data = data
 }
 
-func NewNode[K comparable, T AttributeSelector](id, pid K, data T) Node[K, T] {
+func NewNode[K comparable, T any](id, pid K, data T) Node[K, T] {
 	return &node[K, T]{
 		id:   id,
 		pid:  pid,

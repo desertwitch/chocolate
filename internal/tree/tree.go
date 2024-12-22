@@ -1,11 +1,13 @@
 package tree
 
-type Tree[K comparable, T AttributeSelector] struct {
+type NodeSelector[T any] func(data T) bool
+
+type Tree[K comparable, T any] struct {
 	root Node[K, T]
 	keys *index[K, T]
 }
 
-func NewTree[K comparable, T AttributeSelector]() *Tree[K, T] {
+func NewTree[K comparable, T any]() *Tree[K, T] {
 	return &Tree[K, T]{
 		keys: &index[K, T]{},
 	}
@@ -96,19 +98,26 @@ func (t *Tree[K, T]) Find(id K) (Node[K, T], bool) {
 	return nil, false
 }
 
-func findAllBy[K comparable, T AttributeSelector](n Node[K, T], v interface{}, c chan<- Node[K, T]) {
-	for _, child := range n.GetChildren() {
-		findAllBy(child, v, c)
+func findAllBy[K comparable, T any](n Node[K, T], selector NodeSelector[T], c chan<- Node[K, T], topdown bool) {
+	if topdown {
+		if selector(n.GetData()) {
+			c <- n
+		}
 	}
-	if n.GetData().Has(v) {
-		c <- n
+	for _, child := range n.GetChildren() {
+		findAllBy(child, selector, c, topdown)
+	}
+	if !topdown {
+		if selector(n.GetData()) {
+			c <- n
+		}
 	}
 }
 
-func (t *Tree[K, T]) FindAllBy(v interface{}) <-chan Node[K, T] {
+func (t *Tree[K, T]) FindAllBy(selector NodeSelector[T], topdown bool) <-chan Node[K, T] {
 	ret := make(chan Node[K, T])
 	go func() {
-		findAllBy(t.root, v, ret)
+		findAllBy(t.root, selector, ret, topdown)
 		close(ret)
 	}()
 

@@ -20,49 +20,6 @@ func main() {
 	fourthModel := testModel("linear-parent-1-list-fourth")
 	fifthModel := testModel("linear-parent-3-list-fifth")
 
-	fifthBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model: fifthModel,
-		}),
-		chocolate.WithYScaler(chocolate.NewParentScaler(3)),
-	)
-	fourthBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model: fourthModel,
-		}),
-	)
-	thirdBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model: thirdModel,
-		}),
-	)
-	secondBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model: secondModel,
-		}),
-		chocolate.WithXScaler(chocolate.NewDynamicScaler()),
-	)
-	firstBar := chocolate.NewChocolateBar(nil,
-		chocolate.WithModel(&chocolate.BarModel{
-			Model: firstModel,
-		}),
-		chocolate.WithXScaler(chocolate.NewFixedScaler(60)),
-	)
-	containerBar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
-		thirdBar,
-		fourthBar,
-		fifthBar,
-	},
-		chocolate.WithLayout(chocolate.LIST),
-	)
-	bar := chocolate.NewChocolateBar([]chocolate.CChocolateBar{
-		firstBar,
-		secondBar,
-		containerBar,
-	},
-		chocolate.WithLayout(chocolate.LINEAR),
-	)
-
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
 		fmt.Println(err)
@@ -70,13 +27,52 @@ func main() {
 	}
 	defer f.Close()
 
-	if m, err := chocolate.NewChocolate(bar); // chocolate.WithAutofocus(bar),
-	err != nil {
+	c, err := chocolate.NewNChocolate(chocolate.SetLayout(chocolate.LINEAR))
+	if err != nil {
 		panic(err)
-	} else {
-		if _, err := tea.NewProgram(m,
-			tea.WithAltScreen()).Run(); err != nil {
-			fmt.Println(err)
-		}
+	}
+
+	firstBar := chocolate.NewModelBar(
+		&chocolate.ModelBarModel{Model: firstModel},
+		chocolate.ModelBarXScaler(chocolate.FIXED, 60),
+		chocolate.ModelBarSelectable(),
+	)
+
+	secondBar := chocolate.NewModelBar(
+		&chocolate.ModelBarModel{Model: secondModel},
+		chocolate.ModelBarXScaler(chocolate.DYNAMIC, 0),
+		chocolate.ModelBarSelectable(),
+	)
+
+	thirdBar := chocolate.NewModelBar(
+		&chocolate.ModelBarModel{Model: thirdModel},
+		chocolate.ModelBarSelectable(),
+	)
+
+	fourthBar := chocolate.NewModelBar(
+		&chocolate.ModelBarModel{Model: fourthModel},
+	)
+
+	fifthBar := chocolate.NewModelBar(
+		&chocolate.ModelBarModel{Model: fifthModel},
+		chocolate.ModelBarYScaler(chocolate.PARENT, 3),
+		chocolate.ModelBarID("fifthBar"),
+	)
+
+	containerBar := chocolate.NewLayoutBar(
+		chocolate.LIST,
+		chocolate.LayoutBarID("container"),
+	)
+
+	c.AddBar("root", firstBar)
+	c.AddBar("root", secondBar)
+	c.AddBar("root", containerBar)
+	c.AddBar("container", thirdBar)
+	c.AddBar("container", fourthBar)
+	c.AddBar("container", fifthBar)
+
+	if _, err := tea.NewProgram(c,
+		tea.WithAltScreen()).Run(); err != nil {
+		fmt.Println(err)
 	}
 }

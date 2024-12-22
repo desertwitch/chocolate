@@ -1,6 +1,6 @@
 package tree
 
-type index[K comparable, T AttributeSelector] map[K]Node[K, T]
+type index[K comparable, T any] map[K]Node[K, T]
 
 func (idx *index[K, T]) find(id K) Node[K, T] {
 	if idx == nil {
