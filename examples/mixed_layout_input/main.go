@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mfulz/chocolate"
+	"github.com/mfulz/chocolate/sweets/notify"
 )
 
 type testModel struct {
@@ -18,6 +20,7 @@ func (t testModel) View() string                             { return t.final }
 
 var testModelUpdateHandler = func(b chocolate.ChocolateBar, m tea.Model) func(tea.Msg) tea.Cmd {
 	return func(msg tea.Msg) tea.Cmd {
+		var cmds []tea.Cmd
 		model := m.(*testModel)
 		var v int
 		switch msg := msg.(type) {
@@ -25,12 +28,15 @@ var testModelUpdateHandler = func(b chocolate.ChocolateBar, m tea.Model) func(te
 			switch msg.String() {
 			case "+":
 				v = chocolate.IncLayoutSize(b)
+				cmds = append(cmds, notify.NewNotifyMsg(notify.LEVEL_INFO, fmt.Sprintf("Increased size to: %d", v), time.Second*2))
 			case "-":
 				v = chocolate.DecLayoutSize(b)
+				cmds = append(cmds, notify.NewNotifyMsg(notify.LEVEL_WARN, fmt.Sprintf("Decreased size to: %d", v), time.Second*2))
 			}
 		}
 		if v > 0 {
 			model.final = fmt.Sprintf("%s-%d", model.base, v)
+			return tea.Batch(cmds...)
 		}
 		return nil
 	}
@@ -110,6 +116,7 @@ func main() {
 		m.AddBar("container", thirdBar)
 		m.AddBar("container", fourthBar)
 		m.AddBar("container", fifthBar)
+		notify.NewNotificationBar(m, false)
 
 		if _, err := tea.NewProgram(m,
 			tea.WithAltScreen()).Run(); err != nil {

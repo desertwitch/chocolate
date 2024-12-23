@@ -11,7 +11,7 @@ import (
 
 type ChocolateCustomUpdateHandlerFct func(msg tea.Msg) (tea.Cmd, bool)
 
-type chocolate struct {
+type Chocolate struct {
 	// Key mappings
 	KeyMap KeyMap
 
@@ -30,7 +30,7 @@ type chocolate struct {
 	preUpdateHandler ChocolateCustomUpdateHandlerFct
 }
 
-func (c *chocolate) AddBar(pid string, bar ChocolateBar) error {
+func (c *Chocolate) AddBar(pid string, bar ChocolateBar) error {
 	// TODO: error handling
 	bar.setBarChocolate(c)
 	c.tree.Add(bar.GetID(), pid, bar)
@@ -45,11 +45,27 @@ func (c *chocolate) AddBar(pid string, bar ChocolateBar) error {
 	return nil
 }
 
-func (c chocolate) IsRoot(bar BarSelector) bool {
+func (c *Chocolate) AddOverlayRoot(bar ChocolateBar) error {
+	// TODO: error handling
+	bar.setBarChocolate(c)
+	bar.setOverlay()
+	c.tree.Add(bar.GetID(), c.tree.Root().GetID(), bar)
+
+	c.selectables = []string{}
+	for selectable := range c.tree.FindAllBy(
+		func(bar ChocolateBar) bool { return bar.IsSelectable() }, false,
+	) {
+		c.selectables = append(c.selectables, selectable.GetData().GetID())
+	}
+
+	return nil
+}
+
+func (c Chocolate) IsRoot(bar BarSelector) bool {
 	return c.tree.Root().GetData().GetID() == bar.GetID()
 }
 
-func (c chocolate) GetParent(bar BarSelector) BarParent {
+func (c Chocolate) GetParent(bar BarSelector) BarParent {
 	node, ok := c.tree.Find(bar.GetID())
 	if !ok {
 		return nil
@@ -60,7 +76,7 @@ func (c chocolate) GetParent(bar BarSelector) BarParent {
 	return nil
 }
 
-func (c *chocolate) GetChildren(bar BarSelector) []BarChild {
+func (c *Chocolate) GetChildren(bar BarSelector) []BarChild {
 	children := []BarChild{}
 
 	node, ok := c.tree.Find(bar.GetID())
@@ -79,18 +95,18 @@ func (c *chocolate) GetChildren(bar BarSelector) []BarChild {
 	return children
 }
 
-func (c chocolate) IsSelected(bar BarSelector) bool {
+func (c Chocolate) IsSelected(bar BarSelector) bool {
 	if c.selected == nil {
 		return false
 	}
 	return c.selected.GetID() == bar.GetID()
 }
 
-func (c chocolate) GetSelected() ChocolateBar {
+func (c Chocolate) GetSelected() ChocolateBar {
 	return c.selected
 }
 
-func (c *chocolate) Select(bar ChocolateBar) {
+func (c *Chocolate) Select(bar ChocolateBar) {
 	if !c.selector {
 		c.ForceSelect(bar)
 		return
@@ -113,18 +129,18 @@ func (c *chocolate) Select(bar ChocolateBar) {
 	}
 }
 
-func (c *chocolate) ForceSelect(bar ChocolateBar) {
+func (c *Chocolate) ForceSelect(bar ChocolateBar) {
 	c.selected = bar
 	if !c.selector {
 		c.focused = true
 	}
 }
 
-func (c chocolate) IsFocused(bar BarSelector) bool {
+func (c Chocolate) IsFocused(bar BarSelector) bool {
 	return c.IsSelected(bar) && c.focused
 }
 
-func (c *chocolate) Next() {
+func (c *Chocolate) Next() {
 	if len(c.selectables) == 0 {
 		return
 	}
@@ -145,7 +161,7 @@ func (c *chocolate) Next() {
 	}
 }
 
-func (c chocolate) GetByID(id string) ChocolateBar {
+func (c Chocolate) GetByID(id string) ChocolateBar {
 	node, ok := c.tree.Find(id)
 	if ok {
 		return node.GetData()
@@ -153,7 +169,7 @@ func (c chocolate) GetByID(id string) ChocolateBar {
 	return nil
 }
 
-func (c *chocolate) Prev() {
+func (c *Chocolate) Prev() {
 	if len(c.selectables) == 0 {
 		return
 	}
@@ -174,17 +190,17 @@ func (c *chocolate) Prev() {
 	}
 }
 
-func (c *chocolate) Focus(bar BarSelector) {
+func (c *Chocolate) Focus(bar BarSelector) {
 	if bar.IsFocusable() {
 		c.focused = true
 	}
 }
 
-func (c *chocolate) UnFocus() {
+func (c *Chocolate) UnFocus() {
 	c.focused = false
 }
 
-func (c *chocolate) handleResize(msg tea.WindowSizeMsg) {
+func (c *Chocolate) handleResize(msg tea.WindowSizeMsg) {
 	for bar := range c.tree.FindAllBy(
 		func(bar ChocolateBar) bool { return true }, true,
 	) {
@@ -192,7 +208,7 @@ func (c *chocolate) handleResize(msg tea.WindowSizeMsg) {
 	}
 }
 
-func (c *chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
+func (c *Chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	b := c.selected
@@ -215,7 +231,7 @@ func (c *chocolate) handleNavigation(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (c *chocolate) handleFocused(msg tea.Msg, bar BarUpdater) tea.Cmd {
+func (c *Chocolate) handleFocused(msg tea.Msg, bar BarUpdater) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -231,11 +247,11 @@ func (c *chocolate) handleFocused(msg tea.Msg, bar BarUpdater) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (c *chocolate) Init() tea.Cmd {
+func (c *Chocolate) Init() tea.Cmd {
 	return nil
 }
 
-func (c *chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (c *Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	if c.preUpdateHandler != nil {
@@ -292,7 +308,24 @@ func (c *chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return c, tea.Batch(cmds...)
 }
 
-func (c *chocolate) View() string {
+func (c *Chocolate) renderOverlays(view string) string {
+	// render overlays
+	// mocup
+	overlayBar := c.GetByID("overlay")
+	if overlayBar.IsHidden() {
+		return view
+	}
+	overlay := overlayBar.GetView()
+
+	// ox, oy := lipgloss.Size(overlay)
+	// vx, vy := lipgloss.Size(view)
+
+	// px := (vx / 2) - (ox / 2)
+	// py := (vy / 2) - (oy / 2)
+	return placeOverlay(0, 0, overlay, view)
+}
+
+func (c *Chocolate) View() string {
 	for bar := range c.tree.FindAllBy(
 		func(bar ChocolateBar) bool { return true }, false,
 	) {
@@ -305,45 +338,46 @@ func (c *chocolate) View() string {
 		bar.GetData().Render()
 	}
 
-	return c.tree.Root().GetData().GetView()
+	return c.renderOverlays(c.tree.Root().GetData().GetView())
+	// return c.tree.Root().GetData().GetView()
 }
 
-func (c *chocolate) RegisterUpdateFor(msg tea.Msg, fct ChocolateCustomUpdateHandlerFct) {
+func (c *Chocolate) RegisterUpdateFor(msg tea.Msg, fct ChocolateCustomUpdateHandlerFct) {
 	if fct == nil || msg == nil {
 		return
 	}
 	c.registedUpdater[reflect.TypeOf(msg)] = append(c.registedUpdater[reflect.TypeOf(msg)], fct)
 }
 
-func (c chocolate) getRegisteredUpdateFcts(msg interface{}) []ChocolateCustomUpdateHandlerFct {
+func (c Chocolate) getRegisteredUpdateFcts(msg interface{}) []ChocolateCustomUpdateHandlerFct {
 	if fcts, ok := c.registedUpdater[reflect.TypeOf(msg)]; ok {
 		return fcts
 	}
 	return nil
 }
 
-type chocolateOption func(*chocolate)
+type chocolateOption func(*Chocolate)
 
 func SetLayout(v LayoutType) chocolateOption {
-	return func(c *chocolate) {
+	return func(c *Chocolate) {
 		c.tree.Root().GetData().(BarLayouter).SetLayout(v)
 	}
 }
 
 func WithoutSelector() chocolateOption {
-	return func(c *chocolate) {
+	return func(c *Chocolate) {
 		c.selector = false
 	}
 }
 
 func WithPreUpdateHandler(v ChocolateCustomUpdateHandlerFct) chocolateOption {
-	return func(c *chocolate) {
+	return func(c *Chocolate) {
 		c.preUpdateHandler = v
 	}
 }
 
-func NewNChocolate(opts ...chocolateOption) (*chocolate, error) {
-	ret := &chocolate{
+func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
+	ret := &Chocolate{
 		KeyMap:          DefaultKeyMap(),
 		tree:            tree.NewTree[string, ChocolateBar](),
 		selector:        true,

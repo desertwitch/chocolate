@@ -42,6 +42,7 @@ type BarSelector interface {
 	IsHidden() bool
 	IsSelectable() bool
 	IsFocusable() bool
+	IsOverlay() bool
 }
 
 type BarScaler interface {
@@ -93,6 +94,7 @@ type BarController interface {
 	Hide(value bool)
 	Selectable(value bool)
 	Focusable(value bool)
+	setOverlay()
 }
 
 type BarRenderer interface {

@@ -19,6 +19,7 @@ func main() {
 	thirdModel := testModel("linear-parent-1-list-third")
 	fourthModel := testModel("linear-parent-1-list-fourth")
 	fifthModel := testModel("linear-parent-3-list-fifth")
+	overlayModel := testModel("Overlay")
 
 	f, err := tea.LogToFile("debug.log", "debug")
 	if err != nil {
@@ -62,6 +63,14 @@ func main() {
 		chocolate.WithBarID("fifthBar"),
 	)
 
+	overlayBar := chocolate.NewModelBar(
+		&chocolate.BarModel{Model: overlayModel},
+		chocolate.WithBarXScaler(chocolate.FIXED, 20),
+		chocolate.WithBarYScaler(chocolate.FIXED, 20),
+		chocolate.WithBarID("overlay"),
+	)
+	// overlayBar.Hide(true)
+
 	containerBar := chocolate.NewLayoutBar(
 		chocolate.LIST,
 		chocolate.WithBarID("container"),
@@ -73,6 +82,8 @@ func main() {
 	c.AddBar("container", thirdBar)
 	c.AddBar("container", fourthBar)
 	c.AddBar("container", fifthBar)
+	c.AddOverlayRoot(overlayBar)
+	// overlayBar.Hide(true)
 
 	if _, err := tea.NewProgram(c,
 		tea.WithAltScreen()).Run(); err != nil {

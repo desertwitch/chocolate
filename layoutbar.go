@@ -28,7 +28,7 @@ func (b *layoutBar) PreRender() bool {
 
 	b.preRendered = true
 	for _, child := range b.GetChildren(b) {
-		if child.IsHidden() {
+		if child.IsHidden() || child.IsOverlay() {
 			continue
 		}
 		cw, ch := child.GetContentSize()
@@ -136,7 +136,9 @@ func (b *layoutBar) Render() {
 	switch b.layout {
 	case LINEAR:
 		for _, c := range children {
-			if c.IsHidden() {
+			if c.IsHidden() ||
+				(b.IsRoot(b) &&
+					c.IsOverlay()) {
 				continue
 			}
 			s := b.GetStyle().
@@ -154,7 +156,9 @@ func (b *layoutBar) Render() {
 		b.view = s.Render(lipgloss.JoinHorizontal(0, bars...))
 	case LIST:
 		for _, c := range children {
-			if c.IsHidden() {
+			if c.IsHidden() ||
+				(b.IsRoot(b) &&
+					c.IsOverlay()) {
 				continue
 			}
 			s := b.GetStyle().

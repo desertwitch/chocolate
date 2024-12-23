@@ -73,6 +73,7 @@ type defaultSelector struct {
 	hidden     bool
 	selectable bool
 	focusable  bool
+	overlay    bool
 }
 
 func (s defaultSelector) GetID() string          { return s.id }
@@ -80,9 +81,11 @@ func (s *defaultSelector) SetID(id string)       { s.id = id }
 func (s defaultSelector) IsHidden() bool         { return s.hidden }
 func (s defaultSelector) IsSelectable() bool     { return s.selectable }
 func (s defaultSelector) IsFocusable() bool      { return s.focusable }
+func (s *defaultSelector) IsOverlay() bool       { return s.overlay }
 func (s *defaultSelector) Hide(value bool)       { s.hidden = value }
 func (s *defaultSelector) Selectable(value bool) { s.selectable = value }
 func (s *defaultSelector) Focusable(value bool)  { s.focusable = value }
+func (s *defaultSelector) setOverlay()           { s.overlay = true }
 
 func NewDefaultSelector() *defaultSelector {
 	return &defaultSelector{
@@ -90,6 +93,7 @@ func NewDefaultSelector() *defaultSelector {
 		hidden:     false,
 		selectable: false,
 		focusable:  false,
+		overlay:    false,
 	}
 }
 
