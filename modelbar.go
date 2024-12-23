@@ -7,24 +7,23 @@ import (
 )
 
 type (
-	ModelUpdateHandlerFct           func(NChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
-	ModelFlavourCustomizeHandlerFct func(NChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
-	BarFlavourCustomizeHandlerFct   func(NChocolateBar, lipgloss.Style) func() lipgloss.Style
+	ModelUpdateHandlerFct           func(ChocolateBar, tea.Model) func(tea.Msg) tea.Cmd
+	ModelFlavourCustomizeHandlerFct func(ChocolateBar, tea.Model, lipgloss.Style) func() lipgloss.Style
 )
 
-type ModelBarModel struct {
+type BarModel struct {
 	Model                   tea.Model
 	UpdateHandlerFct        ModelUpdateHandlerFct
 	FlavourCustomizeHandler ModelFlavourCustomizeHandlerFct
 }
 
 type modelBar struct {
-	*defaultRenderer
+	*baseBar
 
 	// models to select from
-	models map[string]*ModelBarModel
+	models map[string]*BarModel
 	// running actModel
-	actModel *ModelBarModel
+	actModel *BarModel
 }
 
 func (b *modelBar) GetStyle() lipgloss.Style {
@@ -32,6 +31,14 @@ func (b *modelBar) GetStyle() lipgloss.Style {
 
 	if b.IsSelected(b) && !b.IsRoot(b) {
 		ret = ret.BorderForeground(flavour.GetColorNoErr(flavour.COLOR_SECONDARY))
+	}
+	if b.IsFocused(b) {
+		ret = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY).
+			BorderBackground(flavour.GetColorNoErr(flavour.COLOR_PRIMARY_BG))
+	}
+
+	if b.hasModel() && b.actModel.FlavourCustomizeHandler != nil {
+		ret = b.actModel.FlavourCustomizeHandler(b, b.actModel.Model, ret)()
 	}
 
 	return ret
@@ -42,7 +49,7 @@ func (b *modelBar) Resize(width, height int) {
 	if pbar != nil {
 		width, height = pbar.GetMaxSize()
 	}
-	b.defaultRenderer.Resize(width, height)
+	b.baseBar.Resize(width, height)
 
 	if b.models != nil {
 		for _, m := range b.models {
@@ -54,7 +61,7 @@ func (b *modelBar) Resize(width, height int) {
 }
 
 func (b *modelBar) PreRender() bool {
-	if b.defaultRenderer.PreRender() {
+	if b.baseBar.PreRender() {
 		return true
 	}
 
@@ -67,8 +74,8 @@ func (b *modelBar) PreRender() bool {
 
 	preView := b.actModel.Model.View()
 	cw, ch := lipgloss.Size(preView)
-	xt, xv := b.GetScaler(X)
-	yt, yv := b.GetScaler(Y)
+	xt, xv := b.GetScaler(XAXIS)
+	yt, yv := b.GetScaler(YAXIS)
 
 	switch xt {
 	case FIXED:
@@ -96,7 +103,7 @@ func (b *modelBar) finalizeSizing() {
 		return
 	}
 
-	b.defaultRenderer.finalizeSizing()
+	b.baseBar.finalizeSizing()
 	b.actModel.Model, _ = b.actModel.Model.Update(tea.WindowSizeMsg{Width: b.width, Height: b.height})
 }
 
@@ -115,6 +122,33 @@ func (b *modelBar) Render() {
 	b.resetRender()
 }
 
+func (b *modelBar) HandleUpdate(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+	var cmd tea.Cmd
+
+	switch msg := msg.(type) {
+	case ModelChangeMsg:
+		b.SelectModel(msg.Model)
+	}
+
+	if b.hasModel() {
+		b.actModel.Model, cmd = b.actModel.Model.Update(msg)
+		cmds = append(cmds, cmd)
+		if b.actModel.UpdateHandlerFct != nil {
+			cmds = append(cmds, b.actModel.UpdateHandlerFct(b, b.actModel.Model)(msg))
+		}
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (b modelBar) hasModel() bool {
+	if b.actModel != nil {
+		return b.actModel.Model != nil
+	}
+	return false
+}
+
 func (b modelBar) GetModel() tea.Model {
 	return b.actModel.Model
 }
@@ -128,37 +162,11 @@ func (b *modelBar) SelectModel(v string) {
 	}
 }
 
-type ModelBarOption func(*modelBar)
-
-func ModelBarID(id string) ModelBarOption {
-	return func(m *modelBar) {
-		m.SetID(id)
-	}
-}
-
-func ModelBarXScaler(scalingType ScalingType, value int) ModelBarOption {
-	return func(m *modelBar) {
-		m.SetScaler(X, scalingType, value)
-	}
-}
-
-func ModelBarYScaler(scalingType ScalingType, value int) ModelBarOption {
-	return func(m *modelBar) {
-		m.SetScaler(Y, scalingType, value)
-	}
-}
-
-func ModelBarSelectable() ModelBarOption {
-	return func(m *modelBar) {
-		m.Selectable(true)
-	}
-}
-
-func NewModelBar(model *ModelBarModel, opts ...ModelBarOption) *modelBar {
+func NewModelBar(model *BarModel, opts ...baseBarOption) *modelBar {
 	ret := &modelBar{
 		actModel: model,
 	}
-	ret.defaultRenderer = NewDefaultRenderer(
+	ret.baseBar = NewBaseBar(
 		WithBarStyler(ret),
 	)
 
@@ -169,13 +177,13 @@ func NewModelBar(model *ModelBarModel, opts ...ModelBarOption) *modelBar {
 	return ret
 }
 
-func NewMultiModelBar(act string, models map[string]*ModelBarModel, opts ...ModelBarOption) *modelBar {
+func NewMultiModelBar(act string, models map[string]*BarModel, opts ...baseBarOption) *modelBar {
 	ret := &modelBar{
 		models:   models,
 		actModel: models[act],
 	}
 
-	ret.defaultRenderer = NewDefaultRenderer(
+	ret.baseBar = NewBaseBar(
 		WithBarStyler(ret),
 	)
 

@@ -12,6 +12,7 @@ type LayoutType int
 const (
 	LIST   LayoutType = iota // will define a vertical arranged layout
 	LINEAR                   // will define a horizontal arranged layout
+	NONE
 )
 
 // A ScalingType defines how the ChocolateBar will be scaled
@@ -27,8 +28,8 @@ const (
 type ScalingAxis int
 
 const (
-	X ScalingAxis = iota
-	Y
+	XAXIS ScalingAxis = iota
+	YAXIS
 )
 
 type BarStyler interface {
@@ -40,6 +41,7 @@ type BarSelector interface {
 	SetID(id string)
 	IsHidden() bool
 	IsSelectable() bool
+	IsFocusable() bool
 }
 
 type BarScaler interface {
@@ -48,38 +50,49 @@ type BarScaler interface {
 }
 
 func IsXFixed(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(X)
+	t, _ := barScaler.GetScaler(XAXIS)
 	return t == FIXED
 }
 
 func IsXParent(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(X)
+	t, _ := barScaler.GetScaler(XAXIS)
 	return t == PARENT
 }
 
 func GetXValue(barScaler BarScaler) int {
-	_, v := barScaler.GetScaler(X)
+	_, v := barScaler.GetScaler(XAXIS)
 	return v
 }
 
 func IsYFixed(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(Y)
+	t, _ := barScaler.GetScaler(YAXIS)
 	return t == FIXED
 }
 
 func IsYParent(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(Y)
+	t, _ := barScaler.GetScaler(YAXIS)
 	return t == PARENT
 }
 
 func GetYValue(barScaler BarScaler) int {
-	_, v := barScaler.GetScaler(Y)
+	_, v := barScaler.GetScaler(YAXIS)
 	return v
+}
+
+func GetScalerValue(axis ScalingAxis, barScaler BarScaler) int {
+	_, v := barScaler.GetScaler(axis)
+	return v
+}
+
+func SetScalerValue(axis ScalingAxis, barScaler BarScaler, value int) {
+	t, _ := barScaler.GetScaler(axis)
+	barScaler.SetScaler(axis, t, value)
 }
 
 type BarController interface {
 	Hide(value bool)
 	Selectable(value bool)
+	Focusable(value bool)
 }
 
 type BarRenderer interface {
@@ -111,6 +124,7 @@ type BarContentSizer interface {
 }
 
 type BarParent interface {
+	BarLayouter
 	BarSizer
 	BarMaxSizer
 }
@@ -123,12 +137,12 @@ type BarChild interface {
 	GetView() string
 }
 
-type BarLayout interface {
+type BarLayouter interface {
 	GetLayout() LayoutType
 	SetLayout(LayoutType)
 }
 
-type BarModel interface {
+type BarModeler interface {
 	GetModel() tea.Model
 	SelectModel(string)
 }
@@ -139,14 +153,90 @@ type ChocolateSelector interface {
 	IsFocused(barSelector BarSelector) bool
 	GetParent(barSelector BarSelector) BarParent
 	GetChildren(barSelector BarSelector) []BarChild
+	Select(bar ChocolateBar)
+	ForceSelect(bar ChocolateBar)
+	Focus(barSelector BarSelector)
+	GetByID(id string) ChocolateBar
 }
 
-type NChocolateBar interface {
+type BarUpdater interface {
+	HandleUpdate(msg tea.Msg) tea.Cmd
+}
+
+type ChocolateBar interface {
 	BarScaler
 	BarSelector
+	BarController
 	BarRenderer
+	BarLayouter
+	BarModeler
 	BarSizer
 	BarMaxSizer
 	BarContentSizer
-	SetBarChocolate(barChocolate ChocolateSelector)
+	ChocolateSelector
+	BarUpdater
+	setBarStyler(barStyler BarStyler)
+	setBarScaler(barScaler BarScaler)
+	setBarSelector(barSelector BarSelector)
+	setBarController(barController BarController)
+	setBarChocolate(barChocolate ChocolateSelector)
+	setStyleCustomizeHandler(styler BaseBarStyleCustomizeHanleFct)
+}
+
+func SetLayoutSize(nChocolateBar ChocolateBar, value int) {
+	p := nChocolateBar.GetParent(nChocolateBar)
+
+	var axis ScalingAxis
+	switch p.GetLayout() {
+	case LINEAR:
+		axis = XAXIS
+	case LIST:
+		axis = YAXIS
+	}
+
+	nt, _ := nChocolateBar.GetScaler(axis)
+	if nt == DYNAMIC {
+		return
+	}
+	SetScalerValue(axis, nChocolateBar, value)
+}
+
+func IncLayoutSize(nChocolateBar ChocolateBar) int {
+	p := nChocolateBar.GetParent(nChocolateBar)
+
+	var axis ScalingAxis
+	switch p.GetLayout() {
+	case LINEAR:
+		axis = XAXIS
+	case LIST:
+		axis = YAXIS
+	}
+
+	nt, value := nChocolateBar.GetScaler(axis)
+	if nt == DYNAMIC {
+		return 0
+	}
+	value++
+	SetScalerValue(axis, nChocolateBar, value)
+	return value
+}
+
+func DecLayoutSize(nChocolateBar ChocolateBar) int {
+	p := nChocolateBar.GetParent(nChocolateBar)
+
+	var axis ScalingAxis
+	switch p.GetLayout() {
+	case LINEAR:
+		axis = XAXIS
+	case LIST:
+		axis = YAXIS
+	}
+
+	nt, value := nChocolateBar.GetScaler(axis)
+	if nt == DYNAMIC {
+		return 0
+	}
+	value--
+	SetScalerValue(axis, nChocolateBar, value)
+	return value
 }

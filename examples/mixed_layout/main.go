@@ -33,35 +33,38 @@ func main() {
 	}
 
 	firstBar := chocolate.NewModelBar(
-		&chocolate.ModelBarModel{Model: firstModel},
-		chocolate.ModelBarXScaler(chocolate.FIXED, 60),
-		chocolate.ModelBarSelectable(),
+		&chocolate.BarModel{Model: firstModel},
+		chocolate.WithBarXScaler(chocolate.FIXED, 60),
+		chocolate.WithBarSelectable(),
 	)
 
 	secondBar := chocolate.NewModelBar(
-		&chocolate.ModelBarModel{Model: secondModel},
-		chocolate.ModelBarXScaler(chocolate.DYNAMIC, 0),
-		chocolate.ModelBarSelectable(),
+		&chocolate.BarModel{Model: secondModel},
+		chocolate.WithBarXScaler(chocolate.DYNAMIC, 0),
+		// chocolate.ModelBarYScaler(chocolate.DYNAMIC, 0),
+		chocolate.WithBarSelectable(),
 	)
+	secondBar.Focusable(true)
 
 	thirdBar := chocolate.NewModelBar(
-		&chocolate.ModelBarModel{Model: thirdModel},
-		chocolate.ModelBarSelectable(),
+		&chocolate.BarModel{Model: thirdModel},
+		chocolate.WithBarSelectable(),
 	)
+	thirdBar.Focusable(true)
 
 	fourthBar := chocolate.NewModelBar(
-		&chocolate.ModelBarModel{Model: fourthModel},
+		&chocolate.BarModel{Model: fourthModel},
 	)
 
 	fifthBar := chocolate.NewModelBar(
-		&chocolate.ModelBarModel{Model: fifthModel},
-		chocolate.ModelBarYScaler(chocolate.PARENT, 3),
-		chocolate.ModelBarID("fifthBar"),
+		&chocolate.BarModel{Model: fifthModel},
+		chocolate.WithBarYScaler(chocolate.PARENT, 3),
+		chocolate.WithBarID("fifthBar"),
 	)
 
 	containerBar := chocolate.NewLayoutBar(
 		chocolate.LIST,
-		chocolate.LayoutBarID("container"),
+		chocolate.WithBarID("container"),
 	)
 
 	c.AddBar("root", firstBar)

@@ -1,13 +1,11 @@
 package chocolate
 
 import (
-	"log"
-
 	"github.com/charmbracelet/lipgloss"
 )
 
 type layoutBar struct {
-	*defaultRenderer
+	*baseBar
 
 	layout     LayoutType
 	totalParts int
@@ -20,11 +18,11 @@ func (b *layoutBar) Resize(width, height int) {
 	if pbar != nil {
 		width, height = pbar.GetMaxSize()
 	}
-	b.defaultRenderer.Resize(width, height)
+	b.baseBar.Resize(width, height)
 }
 
 func (b *layoutBar) PreRender() bool {
-	if b.defaultRenderer.PreRender() {
+	if b.baseBar.PreRender() {
 		return true
 	}
 
@@ -34,8 +32,8 @@ func (b *layoutBar) PreRender() bool {
 			continue
 		}
 		cw, ch := child.GetContentSize()
-		xt, xv := child.GetScaler(X)
-		yt, yv := child.GetScaler(Y)
+		xt, xv := child.GetScaler(XAXIS)
+		yt, yv := child.GetScaler(YAXIS)
 
 		switch xt {
 		case DYNAMIC, FIXED:
@@ -75,7 +73,6 @@ func (b *layoutBar) calcParentsHorizontal() {
 			if b.totalParts <= 0 {
 				width += partLast
 			}
-			log.Printf("width: %d\n", width)
 			SetWidth(child, width)
 			b.contentWidth += width
 		}
@@ -93,7 +90,6 @@ func (b *layoutBar) calcParentsVertical() {
 		partLast := (b.maxHeight - b.contentHeight) % b.totalParts
 
 		for _, child := range b.GetChildren(b) {
-			log.Printf("WTF VERT\n")
 			if !IsYParent(child) || child.IsHidden() {
 				continue
 			}
@@ -104,7 +100,6 @@ func (b *layoutBar) calcParentsVertical() {
 			if b.totalParts <= 0 {
 				height += partLast
 			}
-			log.Printf("height: %d\n", height)
 			SetHeight(child, height)
 			b.contentHeight += height
 		}
@@ -191,7 +186,7 @@ func (b *layoutBar) Render() {
 }
 
 func (b *layoutBar) resetRender() {
-	b.defaultRenderer.resetRender()
+	b.baseBar.resetRender()
 	b.totalParts = 0
 }
 
@@ -203,31 +198,11 @@ func (b layoutBar) GetLayout() LayoutType {
 	return b.layout
 }
 
-type LLayoutBarOption func(*layoutBar)
-
-func LayoutBarID(id string) LLayoutBarOption {
-	return func(m *layoutBar) {
-		m.SetID(id)
-	}
-}
-
-func LayoutBarXScaler(scalingType ScalingType, value int) LLayoutBarOption {
-	return func(m *layoutBar) {
-		m.SetScaler(X, scalingType, value)
-	}
-}
-
-func LayoutBarYScaler(scalingType ScalingType, value int) LLayoutBarOption {
-	return func(m *layoutBar) {
-		m.SetScaler(Y, scalingType, value)
-	}
-}
-
-func NewLayoutBar(layout LayoutType, opts ...LLayoutBarOption) *layoutBar {
+func NewLayoutBar(layout LayoutType, opts ...baseBarOption) *layoutBar {
 	ret := &layoutBar{
 		layout: layout,
 	}
-	ret.defaultRenderer = NewDefaultRenderer()
+	ret.baseBar = NewBaseBar()
 
 	for _, opt := range opts {
 		opt(ret)
