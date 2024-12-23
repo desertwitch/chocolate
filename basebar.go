@@ -130,7 +130,7 @@ func (r *baseBar) SetSize(width, height int) {
 
 func (r *baseBar) finalizeSizing() {
 	pbar := r.GetParent(r)
-	if pbar == nil || r.IsHidden() {
+	if pbar == nil || r.IsHidden() || r.IsOverlay() {
 		return
 	}
 
@@ -151,7 +151,7 @@ func (r *baseBar) finalizeSizing() {
 }
 
 func (r *baseBar) resetRender() {
-	if !r.IsRoot(r) {
+	if !r.IsRoot(r) && !r.IsOverlay() {
 		r.width = 0
 		r.height = 0
 	}
@@ -209,7 +209,7 @@ func (r *baseBar) Resize(width, height int) {
 	r.maxWidth = width
 	r.maxHeight = height
 
-	if r.IsRoot(r) {
+	if r.IsRoot(r) || r.IsOverlay() {
 		r.width = width
 		r.height = height
 	}

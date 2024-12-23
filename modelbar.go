@@ -46,7 +46,7 @@ func (b *modelBar) GetStyle() lipgloss.Style {
 
 func (b *modelBar) Resize(width, height int) {
 	pbar := b.GetParent(b)
-	if pbar != nil {
+	if pbar != nil && !b.IsOverlay() {
 		width, height = pbar.GetMaxSize()
 	}
 	b.baseBar.Resize(width, height)
@@ -99,7 +99,7 @@ func (b *modelBar) PreRender() bool {
 }
 
 func (b *modelBar) finalizeSizing() {
-	if b.IsHidden() {
+	if b.IsHidden() || b.IsOverlay() {
 		return
 	}
 

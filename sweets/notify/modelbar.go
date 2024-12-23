@@ -15,7 +15,7 @@ func NewNotificationBar(c *chocolate.Chocolate, useFlavour bool) *NotifyModel {
 			UpdateHandlerFct:        notifyModelUpdateHandler,
 			FlavourCustomizeHandler: notifyModelFlavourCustomizeHandler,
 		},
-		chocolate.WithBarXScaler(chocolate.DYNAMIC, 0),
+		chocolate.WithBarXScaler(chocolate.PARENT, 1),
 		chocolate.WithBarYScaler(chocolate.DYNAMIC, 0),
 		chocolate.WithBarID("overlay"),
 	)
