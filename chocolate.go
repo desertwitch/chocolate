@@ -19,6 +19,7 @@ type Chocolate struct {
 	selectIdx   int
 	selected    ChocolateBar
 	focused     bool
+	selector    bool
 }
 
 func (c *Chocolate) AddBar(pid string, bar ChocolateBar) error {
@@ -82,6 +83,11 @@ func (c Chocolate) GetSelected() ChocolateBar {
 }
 
 func (c *Chocolate) Select(bar ChocolateBar) {
+	if !c.selector {
+		c.ForceSelect(bar)
+		return
+	}
+
 	if bar == nil {
 		return
 	}
@@ -101,6 +107,9 @@ func (c *Chocolate) Select(bar ChocolateBar) {
 
 func (c *Chocolate) ForceSelect(bar ChocolateBar) {
 	c.selected = bar
+	if !c.selector {
+		c.focused = true
+	}
 }
 
 func (c Chocolate) IsFocused(bar BarSelector) bool {
@@ -243,7 +252,7 @@ func (c *Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, b.HandleUpdate(msg))
 		}
 	case tea.KeyMsg:
-		if c.IsFocused(b) {
+		if c.IsFocused(b) && c.selector {
 			cmds = append(cmds, c.handleFocused(msg, b))
 		} else if c.IsSelected(b) {
 			cmds = append(cmds, b.HandleUpdate(msg))
@@ -280,10 +289,17 @@ func SetLayout(v LayoutType) chocolateOption {
 	}
 }
 
+func WithoutSelector() chocolateOption {
+	return func(c *Chocolate) {
+		c.selector = false
+	}
+}
+
 func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
 	ret := &Chocolate{
-		KeyMap: DefaultKeyMap(),
-		tree:   tree.NewTree[string, ChocolateBar](),
+		KeyMap:   DefaultKeyMap(),
+		tree:     tree.NewTree[string, ChocolateBar](),
+		selector: true,
 	}
 
 	rootBar := NewLayoutBar(LIST,

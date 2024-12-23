@@ -179,6 +179,7 @@ func main() {
 
 	if m, err := chocolate.NewNChocolate(
 		chocolate.SetLayout(chocolate.LINEAR),
+		chocolate.WithoutSelector(),
 	); err != nil {
 		panic(err)
 	} else {
