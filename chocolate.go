@@ -7,6 +7,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type ChocolateCustomUpdateHandlerFct func(msg tea.Msg) (tea.Cmd, bool)
+
 type Chocolate struct {
 	// Key mappings
 	KeyMap KeyMap
@@ -20,6 +22,8 @@ type Chocolate struct {
 	selected    ChocolateBar
 	focused     bool
 	selector    bool
+
+	preUpdateHandler ChocolateCustomUpdateHandlerFct
 }
 
 func (c *Chocolate) AddBar(pid string, bar ChocolateBar) error {
@@ -230,6 +234,14 @@ func (c *Chocolate) Init() tea.Cmd {
 func (c *Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	if c.preUpdateHandler != nil {
+		cmd, stop := c.preUpdateHandler(msg)
+		cmds = append(cmds, cmd)
+		if stop {
+			return c, nil
+		}
+	}
+
 	b := c.selected
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -292,6 +304,12 @@ func SetLayout(v LayoutType) chocolateOption {
 func WithoutSelector() chocolateOption {
 	return func(c *Chocolate) {
 		c.selector = false
+	}
+}
+
+func WithPreUpdateHandler(v ChocolateCustomUpdateHandlerFct) chocolateOption {
+	return func(c *Chocolate) {
+		c.preUpdateHandler = v
 	}
 }
 
