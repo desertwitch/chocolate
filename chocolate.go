@@ -317,12 +317,9 @@ func (c *Chocolate) renderOverlays(view string) string {
 	}
 	overlay := overlayBar.GetView()
 
-	// ox, oy := lipgloss.Size(overlay)
-	// vx, vy := lipgloss.Size(view)
-
-	// px := (vx / 2) - (ox / 2)
-	// py := (vy / 2) - (oy / 2)
-	return placeOverlay(0, 0, overlay, view)
+	px := calcPlacerXPos(overlayBar, overlay, view)
+	py := calcPlacerYPos(overlayBar, overlay, view)
+	return placeOverlay(px, py, overlay, view)
 }
 
 func (c *Chocolate) View() string {

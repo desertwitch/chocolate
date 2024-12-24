@@ -97,6 +97,71 @@ type BarController interface {
 	setOverlay()
 }
 
+type PlacementType int
+
+const (
+	START PlacementType = iota
+	CENTER
+	END
+	POSITION
+)
+
+type BarPlacer interface {
+	GetPlacement(axis ScalingAxis) (PlacementType, int)
+	SetPlacement(axis ScalingAxis, placementType PlacementType, value int)
+}
+
+func calcCenterPos(sizeView, sizeParentView int) int {
+	pos := (sizeParentView / 2) - (sizeView / 2)
+	return pos
+}
+
+func calcEndPos(sizeView, sizeParentView int) int {
+	pos := sizeParentView - sizeView
+	return pos
+}
+
+func calcPlacerXPos(bar BarPlacer, view, parentView string) int {
+	p, v := bar.GetPlacement(XAXIS)
+	vx, _ := lipgloss.Size(view)
+	px, _ := lipgloss.Size(parentView)
+
+	switch p {
+	case START:
+		return 0
+	case POSITION:
+		return v
+	case CENTER:
+		return calcCenterPos(vx, px)
+	case END:
+		return calcEndPos(vx, px)
+	}
+	return 0
+}
+
+func calcPlacerYPos(bar BarPlacer, view, parentView string) int {
+	p, v := bar.GetPlacement(YAXIS)
+	_, vy := lipgloss.Size(view)
+	_, py := lipgloss.Size(parentView)
+
+	switch p {
+	case START:
+		return 0
+	case POSITION:
+		return v
+	case CENTER:
+		return calcCenterPos(vy, py)
+	case END:
+		return calcEndPos(vy, py)
+	}
+	return 0
+}
+
+type BarOverlay interface {
+	GetZindex() int
+	SetZindex(index int)
+}
+
 type BarRenderer interface {
 	Resize(width, height int)
 	PreRender() bool
@@ -133,6 +198,7 @@ type BarParent interface {
 
 type BarChild interface {
 	BarScaler
+	BarPlacer
 	BarSelector
 	BarSizer
 	BarContentSizer
@@ -167,6 +233,7 @@ type BarUpdater interface {
 
 type ChocolateBar interface {
 	BarScaler
+	BarPlacer
 	BarSelector
 	BarController
 	BarRenderer
@@ -178,6 +245,7 @@ type ChocolateBar interface {
 	ChocolateSelector
 	BarUpdater
 	setBarStyler(barStyler BarStyler)
+	setBarPlacer(barPlacer BarPlacer)
 	setBarScaler(barScaler BarScaler)
 	setBarSelector(barSelector BarSelector)
 	setBarController(barController BarController)

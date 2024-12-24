@@ -202,7 +202,7 @@ func (b layoutBar) GetLayout() LayoutType {
 	return b.layout
 }
 
-func NewLayoutBar(layout LayoutType, opts ...baseBarOption) *layoutBar {
+func NewLayoutBar(layout LayoutType, opts ...BaseBarOption) *layoutBar {
 	ret := &layoutBar{
 		layout: layout,
 	}

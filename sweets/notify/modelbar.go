@@ -5,7 +5,7 @@ import (
 	"github.com/mfulz/chocolate"
 )
 
-func NewNotificationBar(c *chocolate.Chocolate, useFlavour bool) *NotifyModel {
+func NewNotificationBar(c *chocolate.Chocolate, useFlavour bool, opts ...chocolate.BaseBarOption) *NotifyModel {
 	nmodel := &NotifyModel{useFlavour: useFlavour}
 	nmodel.initDefaultNotificationTypes()
 
@@ -15,11 +15,17 @@ func NewNotificationBar(c *chocolate.Chocolate, useFlavour bool) *NotifyModel {
 			UpdateHandlerFct:        notifyModelUpdateHandler,
 			FlavourCustomizeHandler: notifyModelFlavourCustomizeHandler,
 		},
-		chocolate.WithBarXScaler(chocolate.PARENT, 80),
 		chocolate.WithBarYScaler(chocolate.DYNAMIC, 0),
+		chocolate.WithBarXScaler(chocolate.DYNAMIC, 0),
+		chocolate.WithBarXPlacer(chocolate.CENTER, 0),
+		chocolate.WithBarYPlacer(chocolate.START, 0),
 		chocolate.WithBarID("overlay"),
 	)
 	notificaitonBar.Hide(true)
+	for _, opt := range opts {
+		opt(notificaitonBar)
+	}
+
 	c.AddOverlayRoot(notificaitonBar)
 
 	c.RegisterUpdateFor(notifyMsg{}, func(b chocolate.ChocolateBar) func(tea.Msg) (tea.Cmd, bool) {

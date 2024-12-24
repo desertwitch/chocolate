@@ -162,7 +162,7 @@ func (b *modelBar) SelectModel(v string) {
 	}
 }
 
-func NewModelBar(model *BarModel, opts ...baseBarOption) *modelBar {
+func NewModelBar(model *BarModel, opts ...BaseBarOption) *modelBar {
 	ret := &modelBar{
 		actModel: model,
 	}
@@ -177,7 +177,7 @@ func NewModelBar(model *BarModel, opts ...baseBarOption) *modelBar {
 	return ret
 }
 
-func NewMultiModelBar(act string, models map[string]*BarModel, opts ...baseBarOption) *modelBar {
+func NewMultiModelBar(act string, models map[string]*BarModel, opts ...BaseBarOption) *modelBar {
 	ret := &modelBar{
 		models:   models,
 		actModel: models[act],

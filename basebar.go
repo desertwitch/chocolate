@@ -62,6 +62,61 @@ func NewDefaultScaler() *defaultScaler {
 	}
 }
 
+type defaultPlacer struct {
+	x struct {
+		t PlacementType
+		v int
+	}
+	y struct {
+		t PlacementType
+		v int
+	}
+}
+
+func (s defaultPlacer) GetPlacement(axis ScalingAxis) (PlacementType, int) {
+	switch axis {
+	case XAXIS:
+		return s.x.t, s.x.v
+	case YAXIS:
+		return s.y.t, s.y.v
+	}
+
+	return s.x.t, s.x.v
+}
+
+func (s *defaultPlacer) SetPlacement(axis ScalingAxis, placementType PlacementType, value int) {
+	switch placementType {
+	case START, CENTER, END:
+		value = 0
+	case POSITION:
+		if value < 0 {
+			value = 0
+		}
+	}
+
+	switch axis {
+	case XAXIS:
+		s.x.t = placementType
+		s.x.v = value
+	case YAXIS:
+		s.y.t = placementType
+		s.y.v = value
+	}
+}
+
+func NewDefaultPlacer() *defaultPlacer {
+	return &defaultPlacer{
+		x: struct {
+			t PlacementType
+			v int
+		}{CENTER, 0},
+		y: struct {
+			t PlacementType
+			v int
+		}{CENTER, 0},
+	}
+}
+
 type defaultStyler struct{}
 
 func (s defaultStyler) GetStyle() lipgloss.Style {
@@ -102,6 +157,7 @@ type BaseBarStyleCustomizeHanleFct func(ChocolateBar, lipgloss.Style) func() lip
 type baseBar struct {
 	BarStyler
 	BarScaler
+	BarPlacer
 	BarSelector
 	BarController
 	ChocolateSelector
@@ -253,6 +309,7 @@ func (r baseBar) SelectModel(string)                  {}
 
 func (r *baseBar) setBarStyler(v BarStyler)         { r.BarStyler = v }
 func (r *baseBar) setBarScaler(v BarScaler)         { r.BarScaler = v }
+func (r *baseBar) setBarPlacer(v BarPlacer)         { r.BarPlacer = v }
 func (r *baseBar) setBarSelector(v BarSelector)     { r.BarSelector = v }
 func (r *baseBar) setBarController(v BarController) { r.BarController = v }
 func (r *baseBar) setStyleCustomizeHandler(v BaseBarStyleCustomizeHanleFct) {
@@ -264,74 +321,94 @@ func (r *baseBar) setBarChocolate(chocolateSelector ChocolateSelector) {
 }
 func (r *baseBar) HandleUpdate(msg tea.Msg) tea.Cmd { return nil }
 
-type baseBarOption func(ChocolateBar)
+type BaseBarOption func(ChocolateBar)
 
-func WithBarID(v string) baseBarOption {
+func WithBarID(v string) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.SetID(v)
 	}
 }
 
-func WithBarSelectable() baseBarOption {
+func WithBarSelectable() BaseBarOption {
 	return func(b ChocolateBar) {
 		b.Selectable(true)
 	}
 }
 
-func WithBarFocusable() baseBarOption {
+func WithBarFocusable() BaseBarOption {
 	return func(b ChocolateBar) {
 		b.Focusable(true)
 	}
 }
 
-func WithBarStyler(v BarStyler) baseBarOption {
+func WithBarStyler(v BarStyler) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.setBarStyler(v)
 	}
 }
 
-func WithBarScaler(v BarScaler) baseBarOption {
+func WithBarScaler(v BarScaler) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.setBarScaler(v)
 	}
 }
 
-func WithBarSelector(v BarSelector) baseBarOption {
+func WithBarPlacer(v BarPlacer) BaseBarOption {
+	return func(b ChocolateBar) {
+		b.setBarPlacer(v)
+	}
+}
+
+func WithBarSelector(v BarSelector) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.setBarSelector(v)
 	}
 }
 
-func WithBarController(v BarController) baseBarOption {
+func WithBarController(v BarController) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.setBarController(v)
 	}
 }
 
-func WithStyleCustomizeHandler(v BaseBarStyleCustomizeHanleFct) baseBarOption {
+func WithStyleCustomizeHandler(v BaseBarStyleCustomizeHanleFct) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.setStyleCustomizeHandler(v)
 	}
 }
 
-func WithBarXScaler(scalingType ScalingType, value int) baseBarOption {
+func WithBarXScaler(scalingType ScalingType, value int) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.SetScaler(XAXIS, scalingType, value)
 	}
 }
 
-func WithBarYScaler(scalingType ScalingType, value int) baseBarOption {
+func WithBarYScaler(scalingType ScalingType, value int) BaseBarOption {
 	return func(b ChocolateBar) {
 		b.SetScaler(YAXIS, scalingType, value)
 	}
 }
 
-func NewBaseBar(opts ...baseBarOption) *baseBar {
+func WithBarXPlacer(placementType PlacementType, value int) BaseBarOption {
+	return func(b ChocolateBar) {
+		b.SetPlacement(XAXIS, placementType, value)
+	}
+}
+
+func WithBarYPlacer(placementType PlacementType, value int) BaseBarOption {
+	return func(b ChocolateBar) {
+		b.SetPlacement(YAXIS, placementType, value)
+	}
+}
+
+func NewBaseBar(opts ...BaseBarOption) *baseBar {
 	scaler := NewDefaultScaler()
+	placer := NewDefaultPlacer()
 	controller := NewDefaultSelector()
 
 	ret := &baseBar{
 		BarScaler:     scaler,
+		BarPlacer:     placer,
 		BarSelector:   controller,
 		BarController: controller,
 		maxWidth:      0,
