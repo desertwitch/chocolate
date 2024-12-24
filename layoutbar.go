@@ -15,7 +15,7 @@ type layoutBar struct {
 
 func (b *layoutBar) Resize(width, height int) {
 	pbar := b.GetParent(b)
-	if pbar != nil && !b.IsOverlay() {
+	if pbar != nil && !b.isOverlay() {
 		width, height = pbar.GetMaxSize()
 	}
 	b.baseBar.Resize(width, height)
@@ -28,7 +28,7 @@ func (b *layoutBar) PreRender() bool {
 
 	b.preRendered = true
 	for _, child := range b.GetChildren(b) {
-		if child.IsHidden() || child.IsOverlay() {
+		if child.IsHidden() || child.isOverlay() {
 			continue
 		}
 		cw, ch := child.GetContentSize()
@@ -63,7 +63,7 @@ func (b *layoutBar) calcParentsHorizontal() {
 		partLast := (b.maxWidth - b.contentWidth) % b.totalParts
 
 		for _, child := range b.GetChildren(b) {
-			if !IsXParent(child) || child.IsHidden() || child.IsOverlay() {
+			if !IsXParent(child) || child.IsHidden() || child.isOverlay() {
 				continue
 			}
 
@@ -90,7 +90,7 @@ func (b *layoutBar) calcParentsVertical() {
 		partLast := (b.maxHeight - b.contentHeight) % b.totalParts
 
 		for _, child := range b.GetChildren(b) {
-			if !IsYParent(child) || child.IsHidden() || child.IsOverlay() {
+			if !IsYParent(child) || child.IsHidden() || child.isOverlay() {
 				continue
 			}
 
@@ -138,7 +138,7 @@ func (b *layoutBar) Render() {
 		for _, c := range children {
 			if c.IsHidden() ||
 				(b.IsRoot(b) &&
-					c.IsOverlay()) {
+					c.isOverlay()) {
 				continue
 			}
 			s := b.GetStyle().
@@ -158,7 +158,7 @@ func (b *layoutBar) Render() {
 		for _, c := range children {
 			if c.IsHidden() ||
 				(b.IsRoot(b) &&
-					c.IsOverlay()) {
+					c.isOverlay()) {
 				continue
 			}
 			s := b.GetStyle().

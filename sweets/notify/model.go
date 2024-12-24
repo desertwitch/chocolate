@@ -25,17 +25,33 @@ func (m *NotifyModel) RegisterNewNotificationType(definition NotifyDefinition) {
 }
 
 func (m *NotifyModel) initDefaultNotificationTypes() {
+	var c string
+	if m.useFlavour {
+		c = LEVEL_INFO
+	} else {
+		c = COLOR_INFO
+	}
 	m.RegisterNewNotificationType(NotifyDefinition{
 		Level: LEVEL_INFO,
-		Color: COLOR_INFO,
+		Color: c,
 	})
+	if m.useFlavour {
+		c = LEVEL_WARN
+	} else {
+		c = COLOR_WARN
+	}
 	m.RegisterNewNotificationType(NotifyDefinition{
 		Level: LEVEL_WARN,
-		Color: COLOR_WARN,
+		Color: c,
 	})
+	if m.useFlavour {
+		c = LEVEL_ERROR
+	} else {
+		c = COLOR_ERROR
+	}
 	m.RegisterNewNotificationType(NotifyDefinition{
 		Level: LEVEL_ERROR,
-		Color: COLOR_ERROR,
+		Color: c,
 	})
 }
 
@@ -93,7 +109,9 @@ var notifyModelFlavourCustomizeHandler = func(b chocolate.ChocolateBar, m tea.Mo
 		}
 
 		if model.useFlavour {
-			return flavour.GetPresetNoErr(flavour.StylePreset(model.activeNotification.color))
+			return s.Foreground(
+				flavour.GetColorNoErr(flavour.ColorName(model.activeNotification.color))).
+				BorderForeground(flavour.GetColorNoErr(flavour.ColorName(model.activeNotification.color)))
 		}
 		color := lipgloss.Color(model.activeNotification.color)
 		return s.Foreground(color).

@@ -42,7 +42,7 @@ type BarSelector interface {
 	IsHidden() bool
 	IsSelectable() bool
 	IsFocusable() bool
-	IsOverlay() bool
+	isOverlay() bool
 }
 
 type BarScaler interface {

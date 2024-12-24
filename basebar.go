@@ -81,7 +81,7 @@ func (s *defaultSelector) SetID(id string)       { s.id = id }
 func (s defaultSelector) IsHidden() bool         { return s.hidden }
 func (s defaultSelector) IsSelectable() bool     { return s.selectable }
 func (s defaultSelector) IsFocusable() bool      { return s.focusable }
-func (s *defaultSelector) IsOverlay() bool       { return s.overlay }
+func (s *defaultSelector) isOverlay() bool       { return s.overlay }
 func (s *defaultSelector) Hide(value bool)       { s.hidden = value }
 func (s *defaultSelector) Selectable(value bool) { s.selectable = value }
 func (s *defaultSelector) Focusable(value bool)  { s.focusable = value }
@@ -130,7 +130,7 @@ func (r *baseBar) SetSize(width, height int) {
 
 func (r *baseBar) finalizeSizing() {
 	pbar := r.GetParent(r)
-	if pbar == nil || r.IsHidden() || r.IsOverlay() {
+	if pbar == nil || r.IsHidden() || r.isOverlay() {
 		return
 	}
 
@@ -151,7 +151,7 @@ func (r *baseBar) finalizeSizing() {
 }
 
 func (r *baseBar) resetRender() {
-	if !r.IsRoot(r) && !r.IsOverlay() {
+	if !r.IsRoot(r) && !r.isOverlay() {
 		r.width = 0
 		r.height = 0
 	}
@@ -206,10 +206,21 @@ func (r *baseBar) Resize(width, height int) {
 		r.height = height
 	}
 
+	if r.isOverlay() {
+		IsXParent(r)
+		xv := GetXValue(r)
+		width = int(float64(width) * (float64(xv) / 100.0))
+		IsYParent(r)
+		yv := GetYValue(r)
+		height = int(float64(height) * (float64(yv) / 100.0))
+		r.width = width
+		r.height = height
+	}
+
 	r.maxWidth = width
 	r.maxHeight = height
 
-	if r.IsRoot(r) || r.IsOverlay() {
+	if r.IsRoot(r) {
 		r.width = width
 		r.height = height
 	}

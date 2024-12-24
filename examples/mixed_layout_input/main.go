@@ -116,7 +116,7 @@ func main() {
 		m.AddBar("container", thirdBar)
 		m.AddBar("container", fourthBar)
 		m.AddBar("container", fifthBar)
-		notify.NewNotificationBar(m, false)
+		notify.NewNotificationBar(m, true)
 
 		if _, err := tea.NewProgram(m,
 			tea.WithAltScreen()).Run(); err != nil {
