@@ -264,12 +264,14 @@ func (r *baseBar) Resize(width, height int) {
 	}
 
 	if r.isOverlay() {
-		IsXParent(r)
-		xv := GetXValue(r)
-		width = int(float64(width) * (float64(xv) / 100.0))
-		IsYParent(r)
-		yv := GetYValue(r)
-		height = int(float64(height) * (float64(yv) / 100.0))
+		if IsXParent(r) {
+			xv := GetXValue(r)
+			width = int(float64(width) * (float64(xv) / 100.0))
+		}
+		if IsYParent(r) {
+			yv := GetYValue(r)
+			height = int(float64(height) * (float64(yv) / 100.0))
+		}
 		r.width = width
 		r.height = height
 	}
