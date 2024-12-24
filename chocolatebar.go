@@ -202,6 +202,7 @@ type BarChild interface {
 	BarSelector
 	BarSizer
 	BarContentSizer
+	BarOverlay
 	GetView() string
 }
 
@@ -244,6 +245,7 @@ type ChocolateBar interface {
 	BarContentSizer
 	ChocolateSelector
 	BarUpdater
+	BarOverlay
 	setBarStyler(barStyler BarStyler)
 	setBarPlacer(barPlacer BarPlacer)
 	setBarScaler(barScaler BarScaler)

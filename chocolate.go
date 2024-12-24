@@ -308,20 +308,6 @@ func (c *Chocolate) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return c, tea.Batch(cmds...)
 }
 
-func (c *Chocolate) renderOverlays(view string) string {
-	// render overlays
-	// mocup
-	overlayBar := c.GetByID("overlay")
-	if overlayBar.IsHidden() {
-		return view
-	}
-	overlay := overlayBar.GetView()
-
-	px := calcPlacerXPos(overlayBar, overlay, view)
-	py := calcPlacerYPos(overlayBar, overlay, view)
-	return placeOverlay(px, py, overlay, view)
-}
-
 func (c *Chocolate) View() string {
 	for bar := range c.tree.FindAllBy(
 		func(bar ChocolateBar) bool { return true }, false,
@@ -335,8 +321,7 @@ func (c *Chocolate) View() string {
 		bar.GetData().Render()
 	}
 
-	return c.renderOverlays(c.tree.Root().GetData().GetView())
-	// return c.tree.Root().GetData().GetView()
+	return c.tree.Root().GetData().GetView()
 }
 
 func (c *Chocolate) RegisterUpdateFor(msg tea.Msg, fct ChocolateCustomUpdateHandlerFct) {

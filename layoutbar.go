@@ -1,6 +1,8 @@
 package chocolate
 
 import (
+	"sort"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -124,6 +126,35 @@ func (b *layoutBar) calcParentSizes() {
 	}
 }
 
+func (b *layoutBar) renderOverlays() {
+	var overlays []BarChild
+
+	children := b.GetChildren(b)
+	for _, c := range children {
+		if c.IsHidden() || !c.isOverlay() {
+			continue
+		}
+		overlays = append(overlays, c)
+	}
+
+	sort.Slice(overlays, func(i, j int) bool {
+		return overlays[i].GetZindex() > overlays[j].GetZindex()
+	})
+
+	actView := b.GetView()
+	for _, c := range overlays {
+		overlayView := c.GetView()
+		if overlayView == "" {
+			continue
+		}
+		px := calcPlacerXPos(c, overlayView, actView)
+		py := calcPlacerYPos(c, overlayView, actView)
+		actView = placeOverlay(px, py, overlayView, actView)
+	}
+
+	b.view = actView
+}
+
 func (b *layoutBar) Render() {
 	var bars []string
 
@@ -178,6 +209,7 @@ func (b *layoutBar) Render() {
 	b.rendered = true
 
 	if b.IsRoot(b) {
+		b.renderOverlays()
 		w, h := lipgloss.Size(b.view)
 		w -= b.GetStyle().GetHorizontalFrameSize()
 		h -= b.GetStyle().GetVerticalFrameSize()

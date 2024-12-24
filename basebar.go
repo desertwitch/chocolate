@@ -171,6 +171,7 @@ type baseBar struct {
 	preRendered   bool
 	rendered      bool
 	view          string
+	zindex        int
 
 	styleCustomizeHandler BaseBarStyleCustomizeHanleFct
 }
@@ -306,6 +307,8 @@ func (r baseBar) GetLayout() (layout LayoutType)      { return NONE }
 func (r baseBar) SetLayout(layout LayoutType)         {}
 func (r baseBar) GetModel() tea.Model                 { return nil }
 func (r baseBar) SelectModel(string)                  {}
+func (r baseBar) GetZindex() int                      { return r.zindex }
+func (r *baseBar) SetZindex(index int)                { r.zindex = index }
 
 func (r *baseBar) setBarStyler(v BarStyler)         { r.BarStyler = v }
 func (r *baseBar) setBarScaler(v BarScaler)         { r.BarScaler = v }
