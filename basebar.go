@@ -16,8 +16,6 @@ type defaultScaler struct {
 		t ScalingType
 		v int
 	}
-	nx Scaler
-	ny Scaler
 }
 
 func (s defaultScaler) GetScaler(axis ScalingAxis) (ScalingType, int) {
@@ -43,32 +41,13 @@ func (s *defaultScaler) SetScaler(axis ScalingAxis, scalingType ScalingType, val
 
 	switch axis {
 	case XAXIS:
-		switch scalingType {
-		case FIXED:
-			s.nx = &FixedScaler{value: value}
-		case DYNAMIC:
-			s.nx = &DynamicScaler{}
-		case PARENT:
-			s.nx = &ParentScaler{value: value}
-		}
 		s.x.t = scalingType
 		s.x.v = value
 	case YAXIS:
-		switch scalingType {
-		case FIXED:
-			s.ny = &FixedScaler{value: value}
-		case DYNAMIC:
-			s.ny = &DynamicScaler{}
-		case PARENT:
-			s.ny = &ParentScaler{value: value}
-		}
 		s.y.t = scalingType
 		s.y.v = value
 	}
 }
-
-func (s *defaultScaler) GetX() Scaler { return s.nx }
-func (s *defaultScaler) GetY() Scaler { return s.ny }
 
 func NewDefaultScaler() *defaultScaler {
 	return &defaultScaler{
@@ -80,12 +59,6 @@ func NewDefaultScaler() *defaultScaler {
 			t ScalingType
 			v int
 		}{PARENT, 1},
-		nx: &ParentScaler{
-			value: 1,
-		},
-		ny: &ParentScaler{
-			value: 1,
-		},
 	}
 }
 

@@ -1,5 +1,15 @@
 package chocolate
 
+import (
+	"github.com/charmbracelet/lipgloss"
+	"github.com/mfulz/chocolate/flavour"
+)
+
+type Bar interface {
+	BarSelector
+	Renderer
+}
+
 type Renderer interface {
 	Resize(width, height int)
 	PreRender()
@@ -7,33 +17,68 @@ type Renderer interface {
 	GetView() string
 }
 
-type rootRenderer struct {
-	width  int
-	height int
+type childSizes struct {
+	width         int
+	height        int
+	maxWidth      int
+	maxHeight     int
+	contentWidth  int
+	contentHeight int
 }
 
-func (r *rootRenderer) Resize(width, height int) {
-	r.width = width
-	r.height = height
-}
-
-type modelRenderer struct {
-	xscaler   Scaler
-	yscaler   Scaler
-	width     int
-	height    int
-	maxWidth  int
-	maxHeight int
-}
-
-type layoutRenderer struct {
-	width     int
-	height    int
-	maxWidth  int
-	maxHeight int
+type parentSizes struct {
+	childSizes
 
 	contentWidth  int
 	contentHeight int
+}
+
+type rootRenderer struct {
+	BarSelector
+	scaler
+	parentSizes
+	view string
+}
+
+func (r *rootRenderer) Resize(width, height int) {
+	r.width = width - r.GetStyle().GetHorizontalFrameSize()
+	r.height = height - r.GetStyle().GetVerticalFrameSize()
+
+	r.maxWidth = r.width
+	r.maxHeight = r.height
+}
+
+func (r *rootRenderer) GetStyle() lipgloss.Style {
+	return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
+}
+
+func (r *rootRenderer) PreRender() {}
+func (r *rootRenderer) Render() {
+	r.view = r.GetStyle().
+		Width(r.width).
+		Height(r.height).
+		Render("")
+}
+
+func (r *rootRenderer) GetView() string { return r.view }
+
+func newRootBar() *rootRenderer {
+	ret := &rootRenderer{
+		BarSelector: NewDefaultSelector(),
+		scaler: *newScaler(nil,
+			withXparent(1, nil),
+			withYparent(1, nil)),
+	}
+
+	return ret
+}
+
+type modelRenderer struct {
+	parentSizes
+}
+
+type layoutRenderer struct {
+	parentSizes
 }
 
 // horizontal arranged layout

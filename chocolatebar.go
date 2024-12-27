@@ -48,8 +48,6 @@ type BarSelector interface {
 type BarScaler interface {
 	GetScaler(axis ScalingAxis) (ScalingType, int)
 	SetScaler(axis ScalingAxis, scalingType ScalingType, value int)
-	GetX() Scaler
-	GetY() Scaler
 }
 
 func IsXFixed(barScaler BarScaler) bool {
