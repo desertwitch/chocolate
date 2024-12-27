@@ -322,6 +322,8 @@ func (c *Chocolate) View() string {
 	}
 
 	return c.tree.Root().GetData().GetView()
+	// m, _ := c.tree.Find("model")
+	// return m.GetData().GetView()
 }
 
 func (c *Chocolate) RegisterUpdateFor(msg tea.Msg, fct ChocolateCustomUpdateHandlerFct) {
@@ -358,6 +360,12 @@ func WithPreUpdateHandler(v ChocolateCustomUpdateHandlerFct) chocolateOption {
 	}
 }
 
+type testModel string
+
+func (t testModel) Init() tea.Cmd                           { return nil }
+func (t testModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
+func (t testModel) View() string                            { return string(t) }
+
 func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
 	ret := &Chocolate{
 		KeyMap:          DefaultKeyMap(),
@@ -374,6 +382,17 @@ func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
 	rootBar.SetID("root")
 
 	ret.tree.Add("root", "", rootBar)
+
+	firstModel := testModel("linear-fixed-60-first")
+	bar := &modelRenderer{
+		BarSelector: NewDefaultSelector(),
+		ActModel:    &BarModel{Model: firstModel},
+		scaler: *newScaler(rootBar.layouter,
+			withXfixed(100),
+			withYdynamic()),
+	}
+	bar.SetID("model")
+	ret.tree.Add("model", "root", bar)
 
 	for _, opt := range opts {
 		opt(ret)

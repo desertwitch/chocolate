@@ -3,6 +3,9 @@ package chocolate
 type ContentSizer interface {
 	AddContentX(width int)
 	AddContentY(height int)
+	GetMaxX() int
+	GetMaxY() int
+	parentBar
 }
 
 type ParentSizer interface {
@@ -54,8 +57,8 @@ func (s *parent) finalSize(size int) int {
 }
 
 func (s *parent) setCotentSize(size int) int {
-	if s.addContentFct != nil {
-		s.addContentFct(size)
+	if s.add != nil {
+		s.add(s.value)
 	}
 	return 0
 }
@@ -64,6 +67,20 @@ type scaler struct {
 	x Scaler
 	y Scaler
 	p ContentSizer
+}
+
+func (s *scaler) GetMaxX() int {
+	if s.p != nil {
+		return s.p.GetMaxX()
+	}
+	return 0
+}
+
+func (s *scaler) GetMaxY() int {
+	if s.p != nil {
+		return s.p.GetMaxY()
+	}
+	return 0
 }
 
 func (s *scaler) FinalSize(width, height int) (int, int) {
