@@ -54,6 +54,7 @@ func (b *layoutBar) PreRender() bool {
 			}
 		}
 	}
+
 	b.calcParentSizes()
 
 	return true
@@ -65,6 +66,7 @@ func (b *layoutBar) calcParentsHorizontal() {
 		partLast := (b.maxWidth - b.contentWidth) % b.totalParts
 
 		for _, child := range b.GetChildren(b) {
+			// child.GetY().finalize(0, child.GetStyle().GetVerticalFrameSize(), b.GetY())
 			if !IsXParent(child) || child.IsHidden() || child.isOverlay() {
 				continue
 			}
