@@ -11,6 +11,9 @@ import (
 type Bar interface {
 	BarSelector
 	Renderer
+	getScaler() *scaler
+	parentBar
+	setParentBar(parentBar)
 }
 
 type Renderer interface {
@@ -20,81 +23,95 @@ type Renderer interface {
 	GetView() string
 }
 
-type childSizes struct {
-	width     int
-	height    int
-	maxWidth  int
-	maxHeight int
-}
-
-type parentSizes struct {
-	childSizes
-
-	contentWidth  int
-	contentHeight int
-}
-
 type rootRenderer struct {
 	BarSelector
-	scaler
-	parentSizes
-	layouter
-	view string
+	*scaler
+	joinFct    func(lipgloss.Position, ...string) string
+	childViews []string
+	view       string
 }
+
+func (r *rootRenderer) getScaler() *scaler { return r.scaler }
 
 type parentBar interface {
 	AddView(string)
 }
 
+func (r *rootRenderer) setParentBar(parent parentBar) {}
 func (r *rootRenderer) Resize(width, height int) {
-	r.width = width - r.GetStyle().GetHorizontalFrameSize()
-	r.height = height - r.GetStyle().GetVerticalFrameSize()
+	r.setWidth(width - r.GetStyle().GetHorizontalFrameSize())
+	r.setHeight(height - r.GetStyle().GetVerticalFrameSize())
 
-	r.maxWidth = r.width
-	r.maxHeight = r.height
+	r.setMaxWidth(r.getWidth())
+	r.setMaxHeight(r.getHeight())
 }
 
 func (r *rootRenderer) GetStyle() lipgloss.Style {
 	return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
 }
 
-func (r *rootRenderer) PreRender() { r.calcPartSize() }
+func (r *rootRenderer) PreRender() {}
 func (r *rootRenderer) Render() {
+	var views []string
+	s := r.GetStyle().
+		BorderTop(false).
+		BorderBottom(false).
+		BorderLeft(false).
+		BorderRight(false).
+		// Width(r.getWidth())
+		Height(r.getHeight())
+
+	for _, b := range r.childViews {
+		views = append(views, s.Render(b))
+	}
+
 	r.view = r.GetStyle().
-		Width(r.width).
-		Height(r.height).
-		Render(r.render(r.GetStyle().Height(r.height).Width(r.width)))
+		Width(r.getWidth()).
+		Height(r.getHeight()).
+		Render(s.Render(r.joinFct(0, views...)))
+	r.childViews = []string{}
 }
 
-func (r *rootRenderer) GetView() string { return r.view }
+func (r *rootRenderer) GetView() string  { return r.view }
+func (r *rootRenderer) AddView(v string) { r.childViews = append(r.childViews, v) }
 
-func newRootBar() *rootRenderer {
+func newRootBar(list bool) *rootRenderer {
 	ret := &rootRenderer{
 		BarSelector: NewDefaultSelector(),
-		scaler: *newScaler(nil,
-			withXparent(1, nil),
-			withYparent(1, nil)),
 	}
-	l := &linearLayout{parentSizes: &ret.parentSizes}
-	ret.layouter = l
+
+	if list {
+		ret.scaler = newListScaler(
+			&parentCreator{1},
+			&parentCreator{1},
+		)
+		ret.joinFct = lipgloss.JoinVertical
+	} else {
+		ret.scaler = newLinearScaler(
+			&parentCreator{1},
+			&parentCreator{1},
+		)
+		ret.joinFct = lipgloss.JoinHorizontal
+	}
 
 	return ret
 }
 
-func (r *linearLayout) GetMaxX() int { return r.maxWidth }
-func (r *linearLayout) GetMaxY() int { return r.maxHeight }
-
 type modelRenderer struct {
 	BarSelector
-	scaler
-	childSizes
-	view string
+	*scaler
+	parent parentBar
+	view   string
 
 	// models to select from
 	models map[string]*BarModel
 	// running ActModel
 	ActModel *BarModel
 }
+
+func (r *modelRenderer) getScaler() *scaler            { return r.scaler }
+func (r *modelRenderer) setParentBar(parent parentBar) { r.parent = parent }
+func (b *modelRenderer) AddView(view string)           {}
 
 func (b modelRenderer) hasModel() bool {
 	if b.ActModel != nil {
@@ -122,8 +139,8 @@ func (r *modelRenderer) GetStyle() lipgloss.Style {
 }
 
 func (r *modelRenderer) Resize(width, height int) {
-	w := r.scaler.GetMaxX() - r.GetStyle().GetHorizontalFrameSize()
-	h := r.scaler.GetMaxY() - r.GetStyle().GetVerticalFrameSize()
+	w := r.getParentMaxWidth() - r.GetStyle().GetHorizontalFrameSize()
+	h := r.getParentMaxHeight() - r.GetStyle().GetVerticalFrameSize()
 
 	if w <= 0 {
 		w = width - r.GetStyle().GetHorizontalFrameSize()
@@ -131,169 +148,39 @@ func (r *modelRenderer) Resize(width, height int) {
 	if h <= 0 {
 		h = width - r.GetStyle().GetVerticalFrameSize()
 	}
-	r.maxWidth = w
-	r.maxHeight = h
+	r.setMaxWidth(w)
+	r.setMaxHeight(h)
 
 	if r.models != nil {
 		for _, m := range r.models {
-			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: r.maxWidth, Height: r.maxHeight})
+			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
 		}
 	} else if r.ActModel != nil {
-		r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: r.maxWidth, Height: r.maxHeight})
+		r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
 	}
 }
-
-func (r *modelRenderer) GetMaxX() int { return r.maxWidth }
-func (r *modelRenderer) GetMaxY() int { return r.maxHeight }
 
 func (r *modelRenderer) PreRender() {
 	preView := r.ActModel.Model.View()
 	cw, ch := lipgloss.Size(preView)
-	r.SetContentSize(cw, ch)
+	cw += r.GetStyle().GetHorizontalFrameSize()
+	ch += r.GetStyle().GetVerticalFrameSize()
+	r.setContentSize(cw, ch)
 }
 
 func (r *modelRenderer) Render() {
 	if r.IsHidden() {
 		return
 	}
-	r.width, r.height = r.FinalSize(r.width, r.height)
-	r.width -= r.GetStyle().GetHorizontalFrameSize()
-	r.height -= r.GetStyle().GetVerticalFrameSize()
-
-	r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: r.width, Height: r.height})
+	w, h := r.finalizeSize(r.GetStyle().GetFrameSize())
+	r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
 
 	r.view = r.GetStyle().
-		Width(r.width).
-		Height(r.height).
+		Width(w).
+		Height(h).
 		Render(r.ActModel.Model.View())
-	log.Printf("w, h: %d, %d\n", r.width, r.height)
-	r.p.AddView(r.view)
+	log.Printf("w, h: %d, %d\n", w, h)
+	r.parent.AddView(r.view)
 }
 
 func (r *modelRenderer) GetView() string { return r.view }
-
-type layoutRenderer struct {
-	parentSizes
-}
-
-type layouter interface {
-	ContentSizer
-	ParentSizer
-	calcPartSize()
-	render(lipgloss.Style) string
-	parentBar
-}
-
-// horizontal arranged layout
-type linearLayout struct {
-	*parentSizes
-	totalParts int
-	partSize   int
-	partLast   int
-	childViews []string
-}
-
-func (r *linearLayout) AddView(v string) {
-	r.childViews = append(r.childViews, v)
-}
-
-func (l *linearLayout) render(s lipgloss.Style) string {
-	var views []string
-	sb := s.
-		BorderTop(false).
-		BorderBottom(false).
-		BorderLeft(false).
-		BorderRight(false).
-		Height(l.height)
-
-	for _, b := range l.childViews {
-		views = append(views, sb.Render(b))
-	}
-	ret := sb.Render(lipgloss.JoinHorizontal(0, views...))
-	l.childViews = []string{}
-	return ret
-}
-
-func (l *linearLayout) AddPartsX(parts int) { l.totalParts += parts }
-func (l *linearLayout) AddPartsY(parts int) {}
-
-func (r *linearLayout) AddContentX(width int) { r.contentWidth += width }
-func (r *linearLayout) AddContentY(height int) {
-	if height > r.contentHeight {
-		r.contentHeight = height
-	}
-}
-
-func (l *linearLayout) calcPartSize() {
-	if l.totalParts > 0 {
-		l.partSize = (l.maxWidth - l.contentWidth) / l.totalParts
-		l.partLast = (l.maxWidth - l.contentWidth) % l.totalParts
-	}
-}
-
-func (l *linearLayout) TakePartsY(parts int) int {
-	if l.height > 0 {
-		return l.height
-	}
-	return l.maxHeight
-}
-
-func (l *linearLayout) TakePartsX(parts int) int {
-	if l.totalParts <= 0 {
-		return 0
-	}
-
-	l.totalParts -= parts
-	width := parts * l.partSize
-	if l.totalParts <= 0 {
-		width += l.partLast
-	}
-
-	return width
-}
-
-// vertical arranged layout
-type listLayout struct {
-	layoutRenderer
-	totalParts int
-	partSize   int
-	partLast   int
-}
-
-func (l *listLayout) AddPartsX(parts int) {}
-func (l *listLayout) AddPartsY(parts int) { l.totalParts += parts }
-
-func (r *listLayout) AddContentY(height int) { r.contentHeight += height }
-func (r *listLayout) AddContentX(width int) {
-	if width > r.contentWidth {
-		r.contentWidth = width
-	}
-}
-
-func (l *listLayout) calcPartSize() {
-	if l.totalParts > 0 {
-		l.partSize = (l.maxHeight - l.contentHeight) / l.totalParts
-		l.partSize = (l.maxHeight - l.contentHeight) % l.totalParts
-	}
-}
-
-func (l *listLayout) TakePartsX(parts int) int {
-	if l.width > 0 {
-		return l.width
-	}
-	return l.maxWidth
-}
-
-func (l *listLayout) TakePartsY(parts int) int {
-	if l.totalParts <= 0 {
-		return 0
-	}
-
-	l.totalParts -= parts
-	height := parts * l.partSize
-	if l.totalParts <= 0 {
-		height += l.partLast
-	}
-
-	return height
-}

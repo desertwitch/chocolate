@@ -1,6 +1,7 @@
 package chocolate
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/mfulz/chocolate/internal/tree"
@@ -33,6 +34,12 @@ type Chocolate struct {
 func (c *Chocolate) AddBar(pid string, bar Bar) error {
 	// TODO: error handling
 	// bar.setBarChocolate(c)
+	pbar := c.GetByID(pid)
+	if pbar == nil {
+		return fmt.Errorf("BUHUUU")
+	}
+	bar.getScaler().addParent(pbar.getScaler().xs, pbar.getScaler().ys)
+	bar.setParentBar(pbar)
 	c.tree.Add(bar.GetID(), pid, bar)
 
 	c.selectables = []string{}
@@ -161,13 +168,13 @@ func (c Chocolate) IsFocused(bar BarSelector) bool {
 // 	}
 // }
 
-// func (c Chocolate) GetByID(id string) ChocolateBar {
-// 	node, ok := c.tree.Find(id)
-// 	if ok {
-// 		return node.GetData()
-// 	}
-// 	return nil
-// }
+func (c Chocolate) GetByID(id string) Bar {
+	node, ok := c.tree.Find(id)
+	if ok {
+		return node.GetData()
+	}
+	return nil
+}
 
 // func (c *Chocolate) Prev() {
 // 	if len(c.selectables) == 0 {
@@ -342,12 +349,6 @@ func (c Chocolate) getRegisteredUpdateFcts(msg interface{}) []ChocolateCustomUpd
 
 type chocolateOption func(*Chocolate)
 
-func SetLayout(v LayoutType) chocolateOption {
-	return func(c *Chocolate) {
-		c.tree.Root().GetData().(BarLayouter).SetLayout(v)
-	}
-}
-
 func WithoutSelector() chocolateOption {
 	return func(c *Chocolate) {
 		c.selector = false
@@ -366,7 +367,7 @@ func (t testModel) Init() tea.Cmd                           { return nil }
 func (t testModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t testModel) View() string                            { return string(t) }
 
-func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
+func NewNChocolate(listLayout bool, opts ...chocolateOption) (*Chocolate, error) {
 	ret := &Chocolate{
 		KeyMap:          DefaultKeyMap(),
 		tree:            tree.NewTree[string, Bar](),
@@ -378,7 +379,7 @@ func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
 	// 	WithBarID("root"),
 	// )
 	// rootBar.setBarChocolate(ret)
-	rootBar := newRootBar()
+	rootBar := newRootBar(listLayout)
 	rootBar.SetID("root")
 
 	ret.tree.Add("root", "", rootBar)
@@ -387,12 +388,24 @@ func NewNChocolate(opts ...chocolateOption) (*Chocolate, error) {
 	bar := &modelRenderer{
 		BarSelector: NewDefaultSelector(),
 		ActModel:    &BarModel{Model: firstModel},
-		scaler: *newScaler(rootBar.layouter,
-			withXfixed(100),
-			withYdynamic()),
+		scaler: newScaler(
+			&dynamicCreator{},
+			&parentCreator{1}),
 	}
 	bar.SetID("model")
-	ret.tree.Add("model", "root", bar)
+
+	secondModel := testModel("linear-fixed-60-second")
+	sbar := &modelRenderer{
+		BarSelector: NewDefaultSelector(),
+		ActModel:    &BarModel{Model: secondModel},
+		scaler: newScaler(
+			&parentCreator{1},
+			&parentCreator{1}),
+	}
+	sbar.SetID("model2")
+
+	ret.AddBar("root", bar)
+	ret.AddBar("root", sbar)
 
 	for _, opt := range opts {
 		opt(ret)

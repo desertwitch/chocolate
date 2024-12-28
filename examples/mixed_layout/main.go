@@ -30,7 +30,7 @@ func main() {
 	defer f.Close()
 
 	// c, err := chocolate.NewNChocolate(chocolate.SetLayout(chocolate.LINEAR))
-	c, err := chocolate.NewNChocolate()
+	c, err := chocolate.NewNChocolate(false)
 	if err != nil {
 		panic(err)
 	}
