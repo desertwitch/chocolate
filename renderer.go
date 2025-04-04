@@ -1,186 +1,135 @@
 package chocolate
 
 import (
-	"log"
-
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mfulz/chocolate/flavour"
 )
 
-type Bar interface {
-	BarSelector
-	Renderer
-	getScaler() *scaler
-	parentBar
-	setParentBar(parentBar)
+type chocolateBarRenderer struct {
+	width   int
+	height  int
+	content *string
 }
 
-type Renderer interface {
-	Resize(width, height int)
-	PreRender()
-	Render()
-	GetView() string
+func (cbr *chocolateBarRenderer) setSize(width, height int) { cbr.width = width; cbr.height = height }
+func (cbr *chocolateBarRenderer) render() string {
+	if cbr.content != nil {
+		return *cbr.content
+	}
+	return ""
 }
 
-type rootRenderer struct {
-	BarSelector
-	*scaler
-	joinFct    func(lipgloss.Position, ...string) string
-	childViews []string
-	view       string
+type noneRenderer struct {
+	chocolateBarRenderer
 }
 
-func (r *rootRenderer) getScaler() *scaler { return r.scaler }
+func (hbr *noneRenderer) setSize(_, _ int) {}
 
-type parentBar interface {
-	AddView(string)
+func newNoneRenderer() *noneRenderer {
+	return &noneRenderer{
+		chocolateBarRenderer: chocolateBarRenderer{},
+	}
 }
 
-func (r *rootRenderer) setParentBar(parent parentBar) {}
-func (r *rootRenderer) Resize(width, height int) {
-	r.setWidth(width - r.GetStyle().GetHorizontalFrameSize())
-	r.setHeight(height - r.GetStyle().GetVerticalFrameSize())
-
-	r.setMaxWidth(r.getWidth())
-	r.setMaxHeight(r.getHeight())
+func newStaticRenderer(content *string) *chocolateBarRenderer {
+	return &chocolateBarRenderer{
+		content: content,
+	}
 }
 
-func (r *rootRenderer) GetStyle() lipgloss.Style {
-	return flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
+type styleRenderer struct {
+	chocolateBarRenderer
+	style        *lipgloss.Style
+	defaultStyle lipgloss.Style
+	cwidth       int
+	cheight      int
 }
 
-func (r *rootRenderer) PreRender() {}
-func (r *rootRenderer) Render() {
-	var views []string
-	s := r.GetStyle().
-		BorderTop(false).
-		BorderBottom(false).
-		BorderLeft(false).
-		BorderRight(false).
-		// Width(r.getWidth())
-		Height(r.getHeight())
-
-	for _, b := range r.childViews {
-		views = append(views, s.Render(b))
+func (sr *styleRenderer) getStyle() *lipgloss.Style {
+	if sr.style != nil {
+		return sr.style
 	}
 
-	r.view = r.GetStyle().
-		Width(r.getWidth()).
-		Height(r.getHeight()).
-		Render(s.Render(r.joinFct(0, views...)))
-	r.childViews = []string{}
+	return &sr.defaultStyle
 }
 
-func (r *rootRenderer) GetView() string  { return r.view }
-func (r *rootRenderer) AddView(v string) { r.childViews = append(r.childViews, v) }
+func (sr *styleRenderer) setSize(width, height int) {
+	sr.chocolateBarRenderer.setSize(width, height)
 
-func newRootBar(list bool) *rootRenderer {
-	ret := &rootRenderer{
-		BarSelector: NewDefaultSelector(),
+	sr.cwidth = sr.width - sr.getStyle().GetHorizontalFrameSize()
+	sr.cheight = sr.height - sr.getStyle().GetVerticalFrameSize()
+}
+
+func (sr *styleRenderer) render() string {
+	sr.setSize(sr.width, sr.height)
+	return sr.getStyle().
+		Width(sr.cwidth).
+		Height(sr.cheight).
+		Render(sr.chocolateBarRenderer.render())
+}
+
+func newStyleRenderer(content *string, style *lipgloss.Style) *styleRenderer {
+	return &styleRenderer{
+		chocolateBarRenderer: *newStaticRenderer(content),
+		style:                style,
+		defaultStyle:         lipgloss.NewStyle(),
+	}
+}
+
+type viewRenderer struct {
+	bar barContainer
+	styleRenderer
+	viewer barViewer
+}
+
+func (vr *viewRenderer) render() string {
+	var w int
+	var h int
+	var nw int
+	var nh int
+
+	if vr.content != nil {
+		w = lipgloss.Width(*vr.content)
+		h = lipgloss.Height(*vr.content)
+	}
+	if vr.viewer != nil {
+		*vr.content = vr.viewer.View()
+		nw = lipgloss.Width(*vr.content)
+		nh = lipgloss.Height(*vr.content)
+	}
+	if w != nw || h != nh {
+		if vr.bar != nil {
+			vr.bar.setDirty()
+		}
 	}
 
-	if list {
-		ret.scaler = newListScaler(
-			&parentCreator{1},
-			&parentCreator{1},
-		)
-		ret.joinFct = lipgloss.JoinVertical
-	} else {
-		ret.scaler = newLinearScaler(
-			&parentCreator{1},
-			&parentCreator{1},
-		)
-		ret.joinFct = lipgloss.JoinHorizontal
-	}
+	return vr.styleRenderer.render()
+}
 
-	return ret
+func newViewRenderer(viewer barViewer, style *lipgloss.Style) *viewRenderer {
+	return &viewRenderer{
+		styleRenderer: *newStyleRenderer(new(string), style),
+		viewer:        viewer,
+	}
 }
 
 type modelRenderer struct {
-	BarSelector
-	*scaler
-	parent parentBar
-	view   string
-
-	// models to select from
-	models map[string]*BarModel
-	// running ActModel
-	ActModel *BarModel
+	viewRenderer
+	model barModel
 }
 
-func (r *modelRenderer) getScaler() *scaler            { return r.scaler }
-func (r *modelRenderer) setParentBar(parent parentBar) { r.parent = parent }
-func (b *modelRenderer) AddView(view string)           {}
+func (mr *modelRenderer) setSize(width, height int) {
+	w := mr.cwidth
+	h := mr.cheight
 
-func (b modelRenderer) hasModel() bool {
-	if b.ActModel != nil {
-		return b.ActModel.Model != nil
-	}
-	return false
-}
-
-func (r *modelRenderer) GetStyle() lipgloss.Style {
-	ret := flavour.GetPresetNoErr(flavour.PRESET_PRIMARY)
-
-	// if b.IsSelected(b) && !b.IsRoot(b) {
-	// 	ret = ret.BorderForeground(flavour.GetColorNoErr(flavour.COLOR_SECONDARY))
-	// }
-	// if b.IsFocused(b) {
-	// 	ret = flavour.GetPresetNoErr(flavour.PRESET_SECONDARY).
-	// 		BorderBackground(flavour.GetColorNoErr(flavour.COLOR_PRIMARY_BG))
-	// }
-
-	// if r.hasModel() && r.actModel.FlavourCustomizeHandler != nil {
-	// 	ret = r.actModel.FlavourCustomizeHandler(r, r.actModel.Model, ret)()
-	// }
-
-	return ret
-}
-
-func (r *modelRenderer) Resize(width, height int) {
-	w := r.getParentMaxWidth() - r.GetStyle().GetHorizontalFrameSize()
-	h := r.getParentMaxHeight() - r.GetStyle().GetVerticalFrameSize()
-
-	if w <= 0 {
-		w = width - r.GetStyle().GetHorizontalFrameSize()
-	}
-	if h <= 0 {
-		h = width - r.GetStyle().GetVerticalFrameSize()
-	}
-	r.setMaxWidth(w)
-	r.setMaxHeight(h)
-
-	if r.models != nil {
-		for _, m := range r.models {
-			m.Model, _ = m.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
-		}
-	} else if r.ActModel != nil {
-		r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	mr.viewRenderer.setSize(width, height)
+	if w != mr.cwidth || h != mr.cheight {
+		mr.model.Resize(mr.cwidth, mr.cheight)
 	}
 }
 
-func (r *modelRenderer) PreRender() {
-	preView := r.ActModel.Model.View()
-	cw, ch := lipgloss.Size(preView)
-	cw += r.GetStyle().GetHorizontalFrameSize()
-	ch += r.GetStyle().GetVerticalFrameSize()
-	r.setContentSize(cw, ch)
-}
-
-func (r *modelRenderer) Render() {
-	if r.IsHidden() {
-		return
+func newModelRenderer(model barModel, style *lipgloss.Style) *modelRenderer {
+	return &modelRenderer{
+		viewRenderer: *newViewRenderer(model, style),
+		model:        model,
 	}
-	w, h := r.finalizeSize(r.GetStyle().GetFrameSize())
-	r.ActModel.Model, _ = r.ActModel.Model.Update(tea.WindowSizeMsg{Width: w, Height: h})
-
-	r.view = r.GetStyle().
-		Width(w).
-		Height(h).
-		Render(r.ActModel.Model.View())
-	log.Printf("w, h: %d, %d\n", w, h)
-	r.parent.AddView(r.view)
 }
-
-func (r *modelRenderer) GetView() string { return r.view }

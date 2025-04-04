@@ -1,317 +1,213 @@
 package chocolate
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"fmt"
+	"strings"
+
+	"github.com/lithdew/casso"
 )
 
-// A LayoutType defines the base direction of the bar
-type LayoutType int
-
-// Layout types
-const (
-	LIST   LayoutType = iota // will define a vertical arranged layout
-	LINEAR                   // will define a horizontal arranged layout
-	NONE
-)
-
-// A ScalingType defines how the ChocolateBar will be scaled
-type ScalingType int
-
-// Scaling types
-const (
-	PARENT  ScalingType = iota // will fill up the available size
-	DYNAMIC                    // will grow as big as the content is
-	FIXED                      // is a fixed size
-)
-
-type ScalingAxis int
-
-const (
-	XAXIS ScalingAxis = iota
-	YAXIS
-)
-
-type BarStyler interface {
-	GetStyle() lipgloss.Style
+type chocolateModel interface {
+	barConstrainer
+	barRenderer
+	selectStyle(FlavourStyleSelector)
+	addThemeModifier(FlavourStyleSelector, ...ThemeStyleModifier)
+	setBar(*chocolateBar)
 }
 
-type BarSelector interface {
-	GetID() string
-	SetID(id string)
-	IsHidden() bool
-	IsSelectable() bool
-	IsFocusable() bool
-	isOverlay() bool
+type chocolateBar struct {
+	_width  int
+	_height int
+	_xpos   int
+	_ypos   int
+	_xend   int
+	_yend   int
+
+	canhide bool
+
+	cElem constraintElement
+
+	parent barContainer
+
+	models   map[string]chocolateModel
+	selected chocolateModel
+	hidden   chocolateModel
+	current  chocolateModel
 }
 
-type BarScaler interface {
-	GetScaler(axis ScalingAxis) (ScalingType, int)
-	SetScaler(axis ScalingAxis, scalingType ScalingType, value int)
-}
+func (cb *chocolateBar) update(solver *casso.Solver) {
+	width := int(solver.Val(cb.cElem.width))
+	height := int(solver.Val(cb.cElem.height))
+	xPos := int(solver.Val(cb.cElem.xpos))
+	yPos := int(solver.Val(cb.cElem.ypos))
 
-func IsXFixed(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(XAXIS)
-	return t == FIXED
-}
-
-func IsXParent(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(XAXIS)
-	return t == PARENT
-}
-
-func GetXValue(barScaler BarScaler) int {
-	_, v := barScaler.GetScaler(XAXIS)
-	return v
-}
-
-func IsYFixed(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(YAXIS)
-	return t == FIXED
-}
-
-func IsYParent(barScaler BarScaler) bool {
-	t, _ := barScaler.GetScaler(YAXIS)
-	return t == PARENT
-}
-
-func GetYValue(barScaler BarScaler) int {
-	_, v := barScaler.GetScaler(YAXIS)
-	return v
-}
-
-func GetScalerValue(axis ScalingAxis, barScaler BarScaler) int {
-	_, v := barScaler.GetScaler(axis)
-	return v
-}
-
-func SetScalerValue(axis ScalingAxis, barScaler BarScaler, value int) {
-	t, _ := barScaler.GetScaler(axis)
-	barScaler.SetScaler(axis, t, value)
-}
-
-type BarController interface {
-	Hide(value bool)
-	Selectable(value bool)
-	Focusable(value bool)
-	setOverlay()
-}
-
-type PlacementType int
-
-const (
-	START PlacementType = iota
-	CENTER
-	END
-	POSITION
-)
-
-type BarPlacer interface {
-	GetPlacement(axis ScalingAxis) (PlacementType, int)
-	SetPlacement(axis ScalingAxis, placementType PlacementType, value int)
-}
-
-func calcCenterPos(sizeView, sizeParentView int) int {
-	pos := (sizeParentView / 2) - (sizeView / 2)
-	return pos
-}
-
-func calcEndPos(sizeView, sizeParentView int) int {
-	pos := sizeParentView - sizeView
-	return pos
-}
-
-func calcPlacerXPos(bar BarPlacer, view, parentView string) int {
-	p, v := bar.GetPlacement(XAXIS)
-	vx, _ := lipgloss.Size(view)
-	px, _ := lipgloss.Size(parentView)
-
-	switch p {
-	case START:
-		return 0
-	case POSITION:
-		return v
-	case CENTER:
-		return calcCenterPos(vx, px)
-	case END:
-		return calcEndPos(vx, px)
-	}
-	return 0
-}
-
-func calcPlacerYPos(bar BarPlacer, view, parentView string) int {
-	p, v := bar.GetPlacement(YAXIS)
-	_, vy := lipgloss.Size(view)
-	_, py := lipgloss.Size(parentView)
-
-	switch p {
-	case START:
-		return 0
-	case POSITION:
-		return v
-	case CENTER:
-		return calcCenterPos(vy, py)
-	case END:
-		return calcEndPos(vy, py)
-	}
-	return 0
-}
-
-type BarOverlay interface {
-	GetZindex() int
-	SetZindex(index int)
-}
-
-type BarRenderer interface {
-	Resize(width, height int)
-	PreRender() bool
-	Render()
-	GetView() string
-}
-
-type BarSizer interface {
-	GetSize() (width, height int)
-	SetSize(width, height int)
-}
-
-func SetWidth(barSizer BarSizer, width int) {
-	barSizer.SetSize(width, -1)
-}
-
-func SetHeight(barSizer BarSizer, height int) {
-	barSizer.SetSize(-1, height)
-}
-
-type BarMaxSizer interface {
-	GetMaxSize() (width, height int)
-}
-
-type BarContentSizer interface {
-	GetContentSize() (width, height int)
-}
-
-type BarParent interface {
-	BarScaler
-	BarLayouter
-	BarSizer
-	BarMaxSizer
-}
-
-type BarChild interface {
-	BarStyler
-	BarScaler
-	BarPlacer
-	BarSelector
-	BarSizer
-	BarContentSizer
-	BarOverlay
-	GetView() string
-}
-
-type BarLayouter interface {
-	GetLayout() LayoutType
-	SetLayout(LayoutType)
-}
-
-type BarModeler interface {
-	GetModel() tea.Model
-	SelectModel(string)
-}
-
-type ChocolateSelector interface {
-	IsSelected(barSelector BarSelector) bool
-	IsRoot(barSelector BarSelector) bool
-	IsFocused(barSelector BarSelector) bool
-	GetParent(barSelector BarSelector) BarParent
-	GetChildren(barSelector BarSelector) []BarChild
-	Select(bar ChocolateBar)
-	ForceSelect(bar ChocolateBar)
-	Focus(barSelector BarSelector)
-	GetByID(id string) ChocolateBar
-}
-
-type BarUpdater interface {
-	HandleUpdate(msg tea.Msg) tea.Cmd
-}
-
-type ChocolateBar interface {
-	BarStyler
-	BarScaler
-	BarPlacer
-	BarSelector
-	BarController
-	BarRenderer
-	BarLayouter
-	BarModeler
-	BarSizer
-	BarMaxSizer
-	BarContentSizer
-	ChocolateSelector
-	BarUpdater
-	BarOverlay
-	setBarStyler(barStyler BarStyler)
-	setBarPlacer(barPlacer BarPlacer)
-	setBarScaler(barScaler BarScaler)
-	setBarSelector(barSelector BarSelector)
-	setBarController(barController BarController)
-	setBarChocolate(barChocolate ChocolateSelector)
-	setStyleCustomizeHandler(styler BaseBarStyleCustomizeHanleFct)
-}
-
-func SetLayoutSize(nChocolateBar ChocolateBar, value int) {
-	p := nChocolateBar.GetParent(nChocolateBar)
-
-	var axis ScalingAxis
-	switch p.GetLayout() {
-	case LINEAR:
-		axis = XAXIS
-	case LIST:
-		axis = YAXIS
+	if cb._xpos != xPos ||
+		cb._ypos != yPos {
+		cb.setDirty()
 	}
 
-	nt, _ := nChocolateBar.GetScaler(axis)
-	if nt == DYNAMIC {
+	cb._xpos = xPos
+	cb._ypos = yPos
+	cb.Resize(width, height)
+}
+
+func (cb *chocolateBar) Resize(width, height int) {
+	if cb.current == nil {
 		return
 	}
-	SetScalerValue(axis, nChocolateBar, value)
+	if cb._width != width ||
+		cb._height != height {
+		cb.setDirty()
+	}
+
+	cb._width = width
+	cb._height = height
+	cb._xend = cb._xpos + cb._width
+	cb._yend = cb._ypos + cb._height
+	cb.current.setSize(cb._width, cb._height)
 }
 
-func IncLayoutSize(nChocolateBar ChocolateBar) int {
-	p := nChocolateBar.GetParent(nChocolateBar)
-
-	var axis ScalingAxis
-	switch p.GetLayout() {
-	case LINEAR:
-		axis = XAXIS
-	case LIST:
-		axis = YAXIS
+func (cb *chocolateBar) width() int                    { return cb._width }
+func (cb *chocolateBar) height() int                   { return cb._height }
+func (cb *chocolateBar) xpos() int                     { return cb._xpos }
+func (cb *chocolateBar) ypos() int                     { return cb._ypos }
+func (cb *chocolateBar) xend() int                     { return cb._xend }
+func (cb *chocolateBar) yend() int                     { return cb._yend }
+func (cb *chocolateBar) getCelem() constraintElement   { return cb.cElem }
+func (cb *chocolateBar) anyZero() bool                 { return cb._width < 1 || cb._height < 1 }
+func (cb *chocolateBar) setParent(parent barContainer) { cb.parent = parent }
+func (cb *chocolateBar) setDirty() {
+	if cb.parent != nil {
+		cb.parent.setDirty()
 	}
-
-	nt, value := nChocolateBar.GetScaler(axis)
-	if nt == DYNAMIC {
-		return 0
-	}
-	value++
-	SetScalerValue(axis, nChocolateBar, value)
-	return value
 }
 
-func DecLayoutSize(nChocolateBar ChocolateBar) int {
-	p := nChocolateBar.GetParent(nChocolateBar)
+func (cb *chocolateBar) getInitConstraints() []casso.Constraint {
+	if cb.current == nil {
+		return nil
+	}
+	ret := []casso.Constraint{}
 
-	var axis ScalingAxis
-	switch p.GetLayout() {
-	case LINEAR:
-		axis = XAXIS
-	case LIST:
-		axis = YAXIS
+	wcon, hcon := cb.current.sizeConstraints()
+	for _, i := range wcon {
+		c := casso.NewConstraint(casso.Op(i.Relation), i.Value, cb.cElem.width.T(1))
+		ret = append(ret, c)
+	}
+	for _, i := range hcon {
+		c := casso.NewConstraint(casso.Op(i.Relation), i.Value, cb.cElem.height.T(1))
+		ret = append(ret, c)
 	}
 
-	nt, value := nChocolateBar.GetScaler(axis)
-	if nt == DYNAMIC {
-		return 0
+	return ret
+}
+
+func (cb *chocolateBar) SelectModel(name string) error {
+	if model, ok := cb.models[strings.ToLower(name)]; !ok {
+		return fmt.Errorf("invalid model '%s'", name)
+	} else {
+		cb.selectModel(model)
 	}
-	value--
-	SetScalerValue(axis, nChocolateBar, value)
-	return value
+
+	return nil
+}
+
+func (cb *chocolateBar) addModel(name string, model chocolateModel) {
+	if cb.models == nil {
+		cb.models = make(map[string]chocolateModel)
+		defer cb.SelectModel(name)
+	}
+
+	cb.models[strings.ToLower(name)] = model
+	model.setBar(cb)
+}
+
+func (cb *chocolateBar) hide() {
+	if !cb.canhide {
+		return
+	}
+	if cb.hidden == nil {
+		cb.hidden = newHiddenModel()
+	}
+
+	if cb.current != cb.hidden {
+		cb.setDirty()
+		cb.current = cb.hidden
+	}
+}
+
+func (cb *chocolateBar) unhide() {
+	if cb.current != cb.selected {
+		cb.setDirty()
+		cb.current = cb.selected
+	}
+}
+
+func (cb *chocolateBar) selectStyle(v FlavourStyleSelector) {
+	if cb.current == nil {
+		return
+	}
+	cb.current.selectStyle(v)
+}
+
+func (cb *chocolateBar) addThemeModifier(name string, style FlavourStyleSelector, modifiers ...ThemeStyleModifier) {
+	if model, ok := cb.models[strings.ToLower(name)]; ok {
+		model.addThemeModifier(style, modifiers...)
+	}
+}
+
+func (cb *chocolateBar) View() string {
+	if cb.current == nil {
+		return ""
+	}
+	return cb.current.render()
+}
+
+func (cb *chocolateBar) setCanHide(v bool) { cb.canhide = v }
+
+func (cb *chocolateBar) selectModel(model chocolateModel) {
+	if cb.current != model {
+		cb.setDirty()
+		cb.current = model
+		cb.selected = model
+	}
+}
+
+func (cb *chocolateBar) sizeConstraints() (width, height []barSizeConstraint) {
+	if cb.current == nil {
+		return nil, nil
+	}
+	return cb.current.sizeConstraints()
+}
+
+func (cb *chocolateBar) constraintTarget(a ConstraintAttribute) bool {
+	if cb.current == nil {
+		return false
+	}
+	return cb.current.constraintTarget(a)
+}
+
+func (cb *chocolateBar) canBias() bool {
+	if cb.current == nil {
+		return false
+	}
+	return cb.current.canBias()
+}
+
+func newChocolateBar(current string, model chocolateModel, canhide bool) *chocolateBar {
+	ret := &chocolateBar{
+		cElem: constraintElement{
+			width:  casso.New(),
+			height: casso.New(),
+			xpos:   casso.New(),
+			ypos:   casso.New(),
+		},
+		canhide: canhide,
+	}
+
+	if model != nil {
+		ret.addModel(current, model)
+		ret.SelectModel(current)
+	}
+
+	return ret
 }
