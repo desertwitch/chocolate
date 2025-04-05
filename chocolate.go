@@ -82,6 +82,10 @@ func (c *Chocolate) AddThemeModifier(name string, model string, style FlavourSty
 	}
 }
 
+func (c *Chocolate) AddRootThemeModifier(style FlavourStyleSelector, modifiers ...ThemeStyleModifier) {
+	c.rootModel.addThemeModifier("default", style, modifiers...)
+}
+
 func (c *Chocolate) MakeBar(name string, canhide bool) {
 	if _, ok := c.bars[name]; ok {
 		return
@@ -170,12 +174,12 @@ func (c *Chocolate) MakeStyledText(name string, bar string, style *lipgloss.Styl
 	return model.model()
 }
 
-func (c *Chocolate) AddViewBarModel(model barViewer, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
+func (c *Chocolate) AddViewBarModel(model BarViewer, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
 	b, ok := c.bars[bar]
 	if !ok {
 		return
 	}
-	var _model *chocolateBarModel[barViewer]
+	var _model *chocolateBarModel[BarViewer]
 	if flavoured {
 		_model = newFlavouredViewBarModel(model, &c.chocolateFlavour, styles...)
 	} else {
@@ -185,12 +189,42 @@ func (c *Chocolate) AddViewBarModel(model barViewer, name string, bar string, fl
 	// b.SelectModel(name)
 }
 
-func (c *Chocolate) AddStyledViewBarModel(model barViewer, name string, bar string, style *lipgloss.Style) {
+func (c *Chocolate) AddStyledViewBarModel(model BarViewer, name string, bar string, style *lipgloss.Style) {
 	b, ok := c.bars[bar]
 	if !ok {
 		return
 	}
 	_model := newStyledViewBarModel(model, style)
+	b.addModel(name, _model)
+	// b.SelectModel(name)
+}
+
+func (c *Chocolate) AddModelBarModel(model BarModel, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
+	b, ok := c.bars[bar]
+	if !ok {
+		return
+	}
+	var _model *chocolateBarModel[BarModel]
+	if flavoured {
+		_model = newFlavouredModelBarModel(model, &c.chocolateFlavour, styles...)
+	} else {
+		_model = newModelBarModel(model)
+	}
+	b.addModel(name, _model)
+	// b.SelectModel(name)
+}
+
+func (c *Chocolate) AddTeaBarModel(model BarModel, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
+	b, ok := c.bars[bar]
+	if !ok {
+		return
+	}
+	var _model *chocolateBarModel[BarModel]
+	if flavoured {
+		_model = newFlavouredTeaBarModel(model, &c.chocolateFlavour, styles...)
+	} else {
+		// _model = newTeaBarModel(model)
+	}
 	b.addModel(name, _model)
 	// b.SelectModel(name)
 }

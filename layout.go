@@ -148,6 +148,7 @@ func (c *constraintLayout) resolve(f int) (map[string]barChild, error) {
 }
 
 func (c *constraintLayout) bias(solver *casso.Solver) bool {
+	// return false
 	for k, child := range c.children {
 		hasBias := false
 		if !child.canBias() {
@@ -248,18 +249,18 @@ func (c *constraintLayout) bias(solver *casso.Solver) bool {
 }
 
 func (c *constraintLayout) parseConstraint(solver *casso.Solver, constraint Constraint) error {
-	if !c.children[constraint.Target].constraintTarget(constraint.TargetAttribute) {
-		return nil
-	}
 	target, ok := c.children[constraint.Target]
 	if !ok {
 		return fmt.Errorf("unknown target: '%s'", constraint.Target)
 	}
+	if !c.children[constraint.Target].constraintTarget(constraint.TargetAttribute) {
+		return nil
+	}
 
-	terms := getAttributeTerms(constraint.TargetAttribute, target.getCelem(), -constraint.Multiplier)
+	terms := getAttributeTerms(constraint.TargetAttribute, target.getCelem(), -1.0) // constraint.Multiplier)
 
 	if constraint.Source == "" {
-		_, err := solver.AddConstraintWithPriority(casso.Priority(constraint.Strength), casso.NewConstraint(casso.Op(constraint.Relation), -constraint.Constant, terms...))
+		_, err := solver.AddConstraintWithPriority(casso.Priority(constraint.Strength), casso.NewConstraint(casso.Op(constraint.Relation), constraint.Constant, terms...))
 		return err
 	}
 
@@ -283,7 +284,7 @@ func (c *constraintLayout) parseConstraint(solver *casso.Solver, constraint Cons
 	if !ok {
 		return fmt.Errorf("unknown source: '%s'", constraint.Source)
 	}
-	terms = append(getAttributeTerms(constraint.SourceAttribute, source.getCelem(), constraint.Multiplier), terms...)
+	terms = append(terms, getAttributeTerms(constraint.SourceAttribute, source.getCelem(), constraint.Multiplier)...)
 
 	_, err := solver.AddConstraintWithPriority(casso.Priority(constraint.Strength), casso.NewConstraint(casso.Op(constraint.Relation), constraint.Constant, terms...))
 	return err

@@ -1,0 +1,88 @@
+[
+  {
+    "_comment": "set fixed height of 5 cells for menuheader",
+    "target": "menuheader",
+    "target_attribute": "height",
+    "relation": "eq",
+    "constant": 5
+  },
+  {
+    "_comment": "set width of menuheader equal to width of menubar and make it required",
+    "source": "menubar",
+    "source_attribute": "width",
+    "target": "menuheader",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "place menubar below menuheader and make it required",
+    "source": "menuheader",
+    "source_attribute": "yend",
+    "target": "menubar",
+    "target_attribute": "ystart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "set width of menubar 20% of the parent's width",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "menubar",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 0.2,
+    "strength": "strong"
+  },
+  {
+    "_comment": "set height of menubar equal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "menubar",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set width of contentbar equal to width of parent. (the bias algorithm will shrink it",
+    "_comment": "to fill the remaining width after sizing menubar. This will work as the default strength is medium",
+    "_comment": "and menubar uses a higher one",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "contentbar",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set height of contentbar equal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "contentbar",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "place contentbar right of menubar and make it required",
+    "source": "menubar",
+    "source_attribute": "xend",
+    "target": "contentbar",
+    "target_attribute": "xstart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "place contentbar vertical at the same start as menuheader and make it required",
+    "source": "menuheader",
+    "source_attribute": "ystart",
+    "target": "contentbar",
+    "target_attribute": "ystart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  }
+]

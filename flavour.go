@@ -24,8 +24,9 @@ type chocolateFlavour struct {
 	styles map[FlavourStyleSelector]*lipgloss.Style
 }
 
-func (t *chocolateFlavour) getStyles(styles ...FlavourStyleSelector) (map[FlavourStyleSelector]*lipgloss.Style, *lipgloss.Style) {
+func (t *chocolateFlavour) getStyles(styles ...FlavourStyleSelector) (map[FlavourStyleSelector]*lipgloss.Style, *lipgloss.Style, FlavourStyleSelector) {
 	current := new(lipgloss.Style)
+	selected := TS_DEFAULT
 	var selectedStyles map[FlavourStyleSelector]*lipgloss.Style
 
 	if len(styles) <= 0 {
@@ -38,6 +39,7 @@ func (t *chocolateFlavour) getStyles(styles ...FlavourStyleSelector) (map[Flavou
 			if s, ok := t.styles[style]; ok {
 				if first {
 					*current = *s
+					selected = style
 					first = false
 				}
 				selectedStyles[style] = s
@@ -45,7 +47,7 @@ func (t *chocolateFlavour) getStyles(styles ...FlavourStyleSelector) (map[Flavou
 		}
 	}
 
-	return selectedStyles, current
+	return selectedStyles, current, selected
 }
 
 func (t *chocolateFlavour) setStyle(selector FlavourStyleSelector, style *lipgloss.Style) {

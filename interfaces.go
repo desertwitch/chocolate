@@ -20,11 +20,11 @@ type barRenderer interface {
 	render() string
 }
 
-type barViewer interface {
+type BarViewer interface {
 	View() string
 }
 
-type barModel interface {
+type BarModel interface {
 	View() string
 	Resize(width, height int)
 }
@@ -35,7 +35,7 @@ type barContainer interface {
 
 type barChild interface {
 	barConstrainer
-	barModel
+	BarModel
 	getInitConstraints() []casso.Constraint
 	getCelem() constraintElement
 	update(*casso.Solver)

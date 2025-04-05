@@ -3,7 +3,6 @@ package chocolate
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -15,7 +14,8 @@ type chocolateBarModel[T any] struct {
 	styles        map[FlavourStyleSelector]*lipgloss.Style
 	styleModifier map[FlavourStyleSelector][]ThemeStyleModifier
 
-	current *lipgloss.Style
+	current  *lipgloss.Style
+	selected FlavourStyleSelector
 
 	srcModel T
 }
@@ -37,6 +37,7 @@ func (cbm *chocolateBarModel[T]) selectStyle(style FlavourStyleSelector) {
 			cbm.setDirty()
 		}
 		*cbm.current = *sel
+		cbm.selected = s
 
 		if selMod, ok := cbm.styleModifier[s]; ok {
 			for _, mod := range selMod {
@@ -59,6 +60,12 @@ func (cbm *chocolateBarModel[T]) addThemeModifier(style FlavourStyleSelector, mo
 			cbm.styleModifier[s] = make([]ThemeStyleModifier, 0)
 		}
 		cbm.styleModifier[s] = append(cbm.styleModifier[s], modifiers...)
+		if cbm.selected == style {
+			cbm.setDirty()
+			for _, mod := range modifiers {
+				*cbm.current = mod(*cbm.current)
+			}
+		}
 	}
 }
 
@@ -68,6 +75,7 @@ func newChocolateBarModel[T any](
 	renderer barRenderer,
 	styles map[FlavourStyleSelector]*lipgloss.Style,
 	current *lipgloss.Style,
+	selected FlavourStyleSelector,
 ) *chocolateBarModel[T] {
 	return &chocolateBarModel[T]{
 		barConstrainer: constrainer,
@@ -75,6 +83,7 @@ func newChocolateBarModel[T any](
 		srcModel:       model,
 		styles:         styles,
 		current:        current,
+		selected:       selected,
 	}
 }
 
@@ -83,7 +92,7 @@ func newHiddenModel() *chocolateBarModel[string] {
 		"",
 		newHiddenConstrainer(),
 		newNoneRenderer(),
-		nil, nil,
+		nil, nil, "",
 	)
 }
 
@@ -102,17 +111,6 @@ func (tm *TextModel) SetText(v string) {
 	}
 }
 
-type teaModel[T any] struct {
-	bar *chocolateBarModel[tea.Model]
-}
-
-func (tm *teaModel[T]) Resize(width, height int) {
-	if tm == nil || tm.bar == nil {
-		return
-	}
-	tm.bar.srcModel, _ = tm.bar.model().Update(tea.WindowSizeMsg{Width: width, Height: height})
-}
-
 func newTextBarModel(text string) *chocolateBarModel[*TextModel] {
 	tm := &TextModel{
 		text: text,
@@ -122,7 +120,7 @@ func newTextBarModel(text string) *chocolateBarModel[*TextModel] {
 		tm,
 		newStyledConstrainer(nil, &tm.text),
 		newStaticRenderer(&tm.text),
-		nil, nil,
+		nil, nil, "",
 	)
 	tm.bar = ret
 
@@ -138,7 +136,7 @@ func newStyledTextBarModel(text string, style *lipgloss.Style) *chocolateBarMode
 		tm,
 		newStyledConstrainer(style, &tm.text),
 		newStyleRenderer(&tm.text, style),
-		nil, nil,
+		nil, nil, "",
 	)
 	tm.bar = ret
 
@@ -146,7 +144,7 @@ func newStyledTextBarModel(text string, style *lipgloss.Style) *chocolateBarMode
 }
 
 func newFlavouredTextBarModel(text string, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[*TextModel] {
-	s, c := flavour.getStyles(styles...)
+	s, c, sel := flavour.getStyles(styles...)
 	tm := &TextModel{
 		text: text,
 	}
@@ -155,77 +153,92 @@ func newFlavouredTextBarModel(text string, flavour *chocolateFlavour, styles ...
 		tm,
 		newStyledConstrainer(c, &tm.text),
 		newStyleRenderer(&tm.text, c),
-		s, c,
+		s, c, sel,
 	)
 	tm.bar = ret
 
 	return ret
 }
 
-func newViewBarModel[T barViewer](model T) *chocolateBarModel[T] {
+func newFlavouredTeaBarModel(model BarModel, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[BarModel] {
+	s, c, sel := flavour.getStyles(styles...)
+	vr := newModelRenderer(model, c)
+	// vr.content = nil
+
+	ret := newChocolateBarModel(
+		model,
+		newStyledConstrainer(c, vr.content),
+		vr,
+		s, c, sel,
+	)
+
+	return ret
+}
+
+func newViewBarModel[T BarViewer](model T) *chocolateBarModel[T] {
 	vr := newViewRenderer(model, nil)
 	ret := newChocolateBarModel(
 		model,
 		newStyledConstrainer(nil, vr.content),
 		vr,
-		nil, nil,
+		nil, nil, "",
 	)
 	vr.bar = ret
 
 	return ret
 }
 
-func newStyledViewBarModel[T barViewer](model T, style *lipgloss.Style) *chocolateBarModel[T] {
+func newStyledViewBarModel[T BarViewer](model T, style *lipgloss.Style) *chocolateBarModel[T] {
 	vr := newViewRenderer(model, style)
 	ret := newChocolateBarModel(
 		model,
 		newStyledConstrainer(style, vr.content),
 		vr,
-		nil, nil,
+		nil, nil, "",
 	)
 	vr.bar = ret
 
 	return ret
 }
 
-func newFlavouredViewBarModel[T barViewer](model T, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[T] {
-	s, c := flavour.getStyles(styles...)
+func newFlavouredViewBarModel[T BarViewer](model T, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[T] {
+	s, c, sel := flavour.getStyles(styles...)
 	vr := newViewRenderer(model, c)
 	ret := newChocolateBarModel(
 		model,
 		newStyledConstrainer(c, vr.content),
 		vr,
-		s, c,
+		s, c, sel,
 	)
 	vr.bar = ret
 
 	return ret
 }
 
-func newModelBarModel[T barModel](model T) *chocolateBarModel[T] {
+func newModelBarModel[T BarModel](model T) *chocolateBarModel[T] {
 	return newChocolateBarModel(
 		model,
 		newStyledConstrainer(nil),
 		newModelRenderer(model, nil),
-		nil, nil,
+		nil, nil, "",
 	)
 }
 
-func newStyledModelBarModel[T barModel](model T, style *lipgloss.Style) *chocolateBarModel[T] {
+func newStyledModelBarModel[T BarModel](model T, style *lipgloss.Style) *chocolateBarModel[T] {
 	return newChocolateBarModel(
 		model,
 		newStyledConstrainer(style),
 		newModelRenderer(model, style),
-		nil, nil,
+		nil, nil, "",
 	)
 }
 
-func newFlavouredModelBarModel[T barModel](model T, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[T] {
-	s, c := flavour.getStyles(styles...)
+func newFlavouredModelBarModel[T BarModel](model T, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[T] {
+	s, c, sel := flavour.getStyles(styles...)
 	return newChocolateBarModel(
 		model,
 		newStyledConstrainer(c),
 		newModelRenderer(model, c),
-		s, c,
+		s, c, sel,
 	)
 }

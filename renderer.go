@@ -78,7 +78,7 @@ func newStyleRenderer(content *string, style *lipgloss.Style) *styleRenderer {
 type viewRenderer struct {
 	bar barContainer
 	styleRenderer
-	viewer barViewer
+	viewer BarViewer
 }
 
 func (vr *viewRenderer) render() string {
@@ -105,7 +105,7 @@ func (vr *viewRenderer) render() string {
 	return vr.styleRenderer.render()
 }
 
-func newViewRenderer(viewer barViewer, style *lipgloss.Style) *viewRenderer {
+func newViewRenderer(viewer BarViewer, style *lipgloss.Style) *viewRenderer {
 	return &viewRenderer{
 		styleRenderer: *newStyleRenderer(new(string), style),
 		viewer:        viewer,
@@ -114,7 +114,7 @@ func newViewRenderer(viewer barViewer, style *lipgloss.Style) *viewRenderer {
 
 type modelRenderer struct {
 	viewRenderer
-	model barModel
+	model BarModel
 }
 
 func (mr *modelRenderer) setSize(width, height int) {
@@ -127,7 +127,7 @@ func (mr *modelRenderer) setSize(width, height int) {
 	}
 }
 
-func newModelRenderer(model barModel, style *lipgloss.Style) *modelRenderer {
+func newModelRenderer(model BarModel, style *lipgloss.Style) *modelRenderer {
 	return &modelRenderer{
 		viewRenderer: *newViewRenderer(model, style),
 		model:        model,
