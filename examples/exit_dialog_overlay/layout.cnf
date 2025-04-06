@@ -1,0 +1,20 @@
+[
+  {
+    "_comment": "set width of mainbar euqal to width of parent",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "mainbar",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set height of mainbar euqal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "mainbar",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  }
+]

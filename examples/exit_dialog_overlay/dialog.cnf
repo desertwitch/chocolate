@@ -1,0 +1,61 @@
+[
+  {
+    "_comment": "set fixed height of 5 cells for buttonbar",
+    "target": "buttonbar",
+    "target_attribute": "height",
+    "relation": "eq",
+    "constant": 5,
+    "strength": "strong"
+  },
+  {
+    "_comment": "set width of buttonbar equal to width of parent",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "buttonbar",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "place buttonbar at the bottom of the parent and make it required",
+    "source": "super",
+    "source_attribute": "yend",
+    "target": "buttonbar",
+    "target_attribute": "yend",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "set width of contentbar equal to width of parent",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "contentbar",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set height of contentbar equal to height of parent. (the bias algorithm will shrink it",
+    "_comment": "to fill the remaining height after sizing buttonbar. This will work as the default strength is medium",
+    "_comment": "and buttonbar uses a higher one and substract the fixed height of the button bar",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "contentbar",
+    "target_attribute": "height",
+    "relation": "eq",
+    "constant": -5,
+    "multiplier": 1.0,
+    "strength": "strong"
+  },
+  {
+    "_comment": "place contentbar at the top of the parent and make it required",
+    "source": "super",
+    "source_attribute": "ystart",
+    "target": "contentbar",
+    "target_attribute": "ystart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  }
+]
