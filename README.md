@@ -44,6 +44,7 @@ To get started, please see the [examples](https://github.com/mfulz/chocolate/tre
 
 The following tasks are in order regarding my personal priority scoring:
 
-- Providing some basic examples
+- ~~Providing some basic examples~~
 - Create the bars repository with some useful bars
+- API method naming cleanup
 - Documentation
