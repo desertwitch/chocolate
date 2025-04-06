@@ -13,11 +13,13 @@ var (
 	viewStyle = lipgloss.NewStyle().
 			Align(lipgloss.Center, lipgloss.Center).
 			Foreground(lipgloss.Color("246")).Background(lipgloss.Color("232")).
-			BorderForeground(lipgloss.Color("246")).BorderBackground(lipgloss.Color("232"))
+			BorderForeground(lipgloss.Color("246")).BorderBackground(lipgloss.Color("232")).
+			MarginBackground(lipgloss.Color("232"))
 	selectedStyle = lipgloss.NewStyle().
 			Align(lipgloss.Center, lipgloss.Center).
 			Foreground(lipgloss.Color("15")).Background(lipgloss.Color("237")).
-			BorderForeground(lipgloss.Color("15")).BorderBackground(lipgloss.Color("237"))
+			BorderForeground(lipgloss.Color("15")).BorderBackground(lipgloss.Color("237")).
+			MarginBackground(lipgloss.Color("237"))
 	focusedStyle = lipgloss.NewStyle().
 			Align(lipgloss.Center, lipgloss.Center).
 			Foreground(lipgloss.Color("196")).Background(lipgloss.Color("232")).
@@ -57,6 +59,9 @@ func (m *buttonsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			m.choice = strings.ToLower(m.buttons[m.selected])
+			m.selected = 0
+		case "esc":
+			m.selected = 0
 		}
 	}
 
@@ -65,8 +70,8 @@ func (m *buttonsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *buttonsModel) View() string {
 	entries := []string{}
-	vs := viewStyle.Width(m.buttonWidth).PaddingRight(5)
-	ss := selectedStyle.Width(m.buttonWidth).PaddingRight(5)
+	vs := viewStyle.Width(m.buttonWidth).MarginRight(2).MarginLeft(2)
+	ss := selectedStyle.Width(m.buttonWidth).MarginRight(2).MarginLeft(2)
 	for i, e := range m.buttons {
 		if i == m.selected {
 			entries = append(entries, ss.Render(e))
@@ -75,9 +80,7 @@ func (m *buttonsModel) View() string {
 		}
 	}
 
-	return vs.Width(m.width).
-		AlignHorizontal(lipgloss.Right).
-		Render(lipgloss.JoinHorizontal(0, entries...))
+	return lipgloss.JoinHorizontal(0, entries...)
 }
 
 func NewButtonsModel(items []string) *buttonsModel {
@@ -125,7 +128,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.dialogOverlay.Disable()
 				m.dialogActive = false
-			case "escape":
+			case "esc":
 				m.dialogOverlay.Disable()
 				m.dialogActive = false
 			}
@@ -177,7 +180,7 @@ func main() {
 	// create an overlay container named dialog which is placed
 	// in the mid with an smaller size (parent width - 20, height - 40) for width and height
 	// using the flavour of the parent
-	overlay := choc.MakeOverlay("overlay", 1, -20, -40, true, chocolate.CENTER, chocolate.CENTER)
+	overlay := choc.MakeOverlay("overlay", 1, -100, -35, true, chocolate.CENTER, chocolate.CENTER)
 
 	// We're loading the layout definition from a file "overlay.cnf"
 	// which is using json.
@@ -203,6 +206,7 @@ func main() {
 	choc.AddRootThemeModifier(chocolate.TS_DEFAULT, chocolate.Border(lipgloss.RoundedBorder()))
 	overlay.AddRootThemeModifier(chocolate.TS_DEFAULT, chocolate.Border(lipgloss.RoundedBorder()))
 	overlay.AddThemeModifier("contentbar", "question", chocolate.TS_DEFAULT, chocolate.Border(lipgloss.RoundedBorder()))
+	overlay.AddThemeModifier("buttonbar", "buttons", chocolate.TS_DEFAULT, chocolate.AlignHorizontal(lipgloss.Right), chocolate.PaddingRight(2))
 
 	m := &model{
 		choc:          choc,

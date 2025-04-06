@@ -4,8 +4,7 @@
     "target": "buttonbar",
     "target_attribute": "height",
     "relation": "eq",
-    "constant": 5,
-    "strength": "strong"
+    "constant": 1
   },
   {
     "_comment": "set width of buttonbar equal to width of parent",
@@ -44,9 +43,8 @@
     "target": "contentbar",
     "target_attribute": "height",
     "relation": "eq",
-    "constant": -5,
-    "multiplier": 1.0,
-    "strength": "strong"
+    "constant": -1,
+    "multiplier": 1.0
   },
   {
     "_comment": "place contentbar at the top of the parent and make it required",
