@@ -39,12 +39,13 @@ at any time.~~
 ~~in the right direction if needed.~~
 
 To get started, please see the [examples](https://github.com/mfulz/chocolate/tree/master/examples)
+Created [sweets repository](https://github.com/mfulz/sweets)
 
 ## Priority
 
 The following tasks are in order regarding my personal priority scoring:
 
 - ~~Providing some basic examples~~
-- Create the bars repository with some useful bars
+- ~~Create the bars repository with some useful bars~~
 - API method naming cleanup
 - Documentation
