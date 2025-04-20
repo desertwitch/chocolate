@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lithdew/casso"
@@ -26,14 +27,20 @@ type constraintLayout struct {
 	dirty       bool
 }
 
-func (c *constraintLayout) addBar(n string, v barChild) {
+func (c *constraintLayout) addBar(n string, v barChild) bool {
+	name := strings.ToLower(n)
+	if name == "super" {
+		return false
+	}
+
 	if c.children == nil {
 		c.children = make(map[string]barChild)
 	}
 	v.setParent(c)
-	c.children[n] = v
+	c.children[name] = v
 
 	c.dirty = true
+	return true
 }
 
 func (c *constraintLayout) Resize(width, height int) {
@@ -82,8 +89,8 @@ func (c *constraintLayout) View() string {
 
 func (c *constraintLayout) setDirty() { c.dirty = true }
 
-func (c *constraintLayout) AddConstraint(constraint Constraint) {
-	c.constraints = append(c.constraints, constraint)
+func (c *constraintLayout) addConstraints(constraints ...Constraint) {
+	c.constraints = append(c.constraints, constraints...)
 	c.dirty = true
 }
 

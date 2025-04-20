@@ -1,7 +1,6 @@
 package chocolate
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/lithdew/casso"
@@ -101,20 +100,10 @@ func (cb *chocolateBar) getInitConstraints() []casso.Constraint {
 	return ret
 }
 
-func (cb *chocolateBar) SelectModel(name string) error {
-	if model, ok := cb.models[strings.ToLower(name)]; !ok {
-		return fmt.Errorf("invalid model '%s'", name)
-	} else {
-		cb.selectModel(model)
-	}
-
-	return nil
-}
-
 func (cb *chocolateBar) addModel(name string, model chocolateModel) {
 	if cb.models == nil {
 		cb.models = make(map[string]chocolateModel)
-		defer cb.SelectModel(name)
+		defer cb.selectModel(name)
 	}
 
 	cb.models[strings.ToLower(name)] = model
@@ -163,12 +152,18 @@ func (cb *chocolateBar) View() string {
 }
 
 func (cb *chocolateBar) setCanHide(v bool) { cb.canhide = v }
+func (cb *chocolateBar) isHidden() bool    { return cb.hidden == cb.current && cb.hidden != nil }
 
-func (cb *chocolateBar) selectModel(model chocolateModel) {
-	if cb.current != model {
-		cb.setDirty()
-		cb.current = model
-		cb.selected = model
+func (cb *chocolateBar) selectModel(name string) bool {
+	if model, ok := cb.models[strings.ToLower(name)]; !ok {
+		return false
+	} else {
+		if cb.current != model {
+			cb.setDirty()
+			cb.current = model
+			cb.selected = model
+		}
+		return true
 	}
 }
 
@@ -206,7 +201,7 @@ func newChocolateBar(current string, model chocolateModel, canhide bool) *chocol
 
 	if model != nil {
 		ret.addModel(current, model)
-		ret.SelectModel(current)
+		ret.selectModel(current)
 	}
 
 	return ret

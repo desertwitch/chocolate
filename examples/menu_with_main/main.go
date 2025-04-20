@@ -39,6 +39,9 @@ func (m *menuModel) Resize(width, height int) {
 
 func (m *menuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width - 4
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j":
@@ -166,7 +169,8 @@ func main() {
 	// create the menu model and place it as ModelBarModel (BarModel interface, including Resize)
 	// with the name "menu" inside the bar "menubar" providing the flavour
 	menuModel := NewMenuModel([]string{"first", "second"})
-	choc.AddModelBarModel(menuModel, "menu", "menubar", true)
+	// choc.AddModelBarModel(menuModel, "menu", "menubar", true)
+	choc.AddTeaModelBarModel(menuModel, "menu", "menubar", true)
 
 	// Here we can define overrides for specific styles (TS_DEFAULT) of a single model (menuheader, menu, first, second)
 	// of a bar (menuheader, menubar, contentbar)

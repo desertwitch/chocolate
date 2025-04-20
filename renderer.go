@@ -1,6 +1,7 @@
 package chocolate
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -132,4 +133,9 @@ func newModelRenderer(model BarModel, style *lipgloss.Style) *modelRenderer {
 		viewRenderer: *newViewRenderer(model, style),
 		model:        model,
 	}
+}
+
+type teaRenderer struct {
+	modelRenderer
+	model tea.Model
 }

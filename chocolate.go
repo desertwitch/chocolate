@@ -4,6 +4,7 @@ import (
 	"os"
 	"sort"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -24,8 +25,8 @@ func (c *Chocolate) Resize(width, height int) {
 	}
 }
 
-func (c *Chocolate) setDirty()                          { c.root.setDirty() }
-func (c *Chocolate) addBar(name string, child barChild) { c.root.addBar(name, child) }
+func (c *Chocolate) setDirty()                               { c.root.setDirty() }
+func (c *Chocolate) addBar(name string, child barChild) bool { return c.root.addBar(name, child) }
 
 func (c *Chocolate) View() string {
 	overlaysSorted := []*Overlay{}
@@ -51,9 +52,11 @@ func (c *Chocolate) View() string {
 	return ret
 }
 
-func (c *Chocolate) AddConstraint(con Constraint) {
-	c.root.AddConstraint(con)
-	c.MakeBar(con.Target, false)
+func (c *Chocolate) AddConstraints(constraints ...Constraint) {
+	c.root.addConstraints(constraints...)
+	for _, constraint := range constraints {
+		c.MakeBar(constraint.Target, false)
+	}
 }
 
 func (c *Chocolate) FromFile(file string) error {
@@ -86,21 +89,21 @@ func (c *Chocolate) AddRootThemeModifier(style FlavourStyleSelector, modifiers .
 	c.rootModel.addThemeModifier("default", style, modifiers...)
 }
 
-func (c *Chocolate) MakeBar(name string, canhide bool) {
+func (c *Chocolate) MakeBar(name string, canhide bool) bool {
 	if _, ok := c.bars[name]; ok {
-		return
+		return false
 	}
 	bar := newChocolateBar(
 		"",
 		nil,
 		canhide,
 	)
-	c.addBar(name, bar)
-
 	if c.bars == nil {
 		c.bars = make(map[string]*chocolateBar)
 	}
 	c.bars[name] = bar
+
+	return c.addBar(name, bar)
 }
 
 func (c *Chocolate) MakeChocolate(name string, bar string, flavoured bool, styles ...FlavourStyleSelector) *Chocolate {
@@ -214,24 +217,25 @@ func (c *Chocolate) AddModelBarModel(model BarModel, name string, bar string, fl
 	// b.SelectModel(name)
 }
 
-func (c *Chocolate) AddTeaBarModel(model BarModel, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
+func (c *Chocolate) AddTeaModelBarModel(model tea.Model, name string, bar string, flavoured bool, styles ...FlavourStyleSelector) {
 	b, ok := c.bars[bar]
 	if !ok {
 		return
 	}
-	var _model *chocolateBarModel[BarModel]
+	_model := newTeaModel(model)
 	if flavoured {
-		_model = newFlavouredTeaBarModel(model, &c.chocolateFlavour, styles...)
+		_bar := newFlavouredModelBarModel(_model, &c.chocolateFlavour, styles...)
+		b.addModel(name, _bar)
 	} else {
-		// _model = newTeaBarModel(model)
+		_bar := newModelBarModel(_model)
+		b.addModel(name, _bar)
 	}
-	b.addModel(name, _model)
 	// b.SelectModel(name)
 }
 
 func (c *Chocolate) SelectModel(name string, bar string) {
 	if b, ok := c.bars[bar]; ok {
-		b.SelectModel(name)
+		b.selectModel(name)
 	}
 }
 
@@ -251,6 +255,13 @@ func (c *Chocolate) SetCanHide(bar string, v bool) {
 	}
 }
 
+func (c *Chocolate) IsHidden(bar string) bool {
+	if b, ok := c.bars[bar]; ok {
+		return b.isHidden()
+	}
+	return true // fake hidden if not existing
+}
+
 func (c *Chocolate) Hide(bar string) {
 	if b, ok := c.bars[bar]; ok {
 		b.hide()
@@ -261,6 +272,11 @@ func (c *Chocolate) Unhide(bar string) {
 	if b, ok := c.bars[bar]; ok {
 		b.unhide()
 	}
+}
+
+func (c *Chocolate) IsBar(bar string) bool {
+	_, ok := c.bars[bar]
+	return ok
 }
 
 type ChocolateOption func(*Chocolate)

@@ -3,6 +3,7 @@ package chocolate
 import (
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -160,21 +161,6 @@ func newFlavouredTextBarModel(text string, flavour *chocolateFlavour, styles ...
 	return ret
 }
 
-func newFlavouredTeaBarModel(model BarModel, flavour *chocolateFlavour, styles ...FlavourStyleSelector) *chocolateBarModel[BarModel] {
-	s, c, sel := flavour.getStyles(styles...)
-	vr := newModelRenderer(model, c)
-	// vr.content = nil
-
-	ret := newChocolateBarModel(
-		model,
-		newStyledConstrainer(c, vr.content),
-		vr,
-		s, c, sel,
-	)
-
-	return ret
-}
-
 func newViewBarModel[T BarViewer](model T) *chocolateBarModel[T] {
 	vr := newViewRenderer(model, nil)
 	ret := newChocolateBarModel(
@@ -241,4 +227,23 @@ func newFlavouredModelBarModel[T BarModel](model T, flavour *chocolateFlavour, s
 		newModelRenderer(model, c),
 		s, c, sel,
 	)
+}
+
+type teaModel struct {
+	tea.Model
+}
+
+func (tmbm *teaModel) Resize(width, height int) {
+	tmbm.Update(
+		tea.WindowSizeMsg{
+			Width:  width,
+			Height: height,
+		},
+	)
+}
+
+func newTeaModel(model tea.Model) *teaModel {
+	return &teaModel{
+		model,
+	}
 }

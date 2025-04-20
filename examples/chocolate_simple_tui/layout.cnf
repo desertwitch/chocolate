@@ -1,0 +1,80 @@
+[
+  {
+    "_comment": "set width of tuimodel1 20% of the parent's width",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "tuimodel1",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 0.2,
+    "strength": "required"
+  },
+  {
+    "_comment": "set height of tuimodel1 equal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "tuimodel1",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "place tuimodel2 right to tuimodel1 and make it required",
+    "source": "tuimodel1",
+    "source_attribute": "xend",
+    "target": "tuimodel2",
+    "target_attribute": "xstart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "set width of tuimodel2 equal to width of parent. (the bias algorithm will shrink it",
+    "_comment": "to fill the remaining width after sizing tuimodel1. This will work as the default strength is medium",
+    "_comment": "and tuimodel1 uses a higher one",
+    "source": "super",
+    "source_attribute": "width",
+    "target": "tuimodel2",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set width of tuimodel3 equal to width of tuimodel2 and make it required.",
+    "source": "tuimodel2",
+    "source_attribute": "width",
+    "target": "tuimodel3",
+    "target_attribute": "width",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  },
+  {
+    "_comment": "set height of tuimodel2 equal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "tuimodel2",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "set height of tuimodel3 equal to height of parent",
+    "source": "super",
+    "source_attribute": "height",
+    "target": "tuimodel3",
+    "target_attribute": "height",
+    "relation": "eq",
+    "multiplier": 1.0
+  },
+  {
+    "_comment": "place tuimodel3 right of tuimodel2 and make it required",
+    "source": "tuimodel2",
+    "source_attribute": "xend",
+    "target": "tuimodel3",
+    "target_attribute": "xstart",
+    "relation": "eq",
+    "multiplier": 1.0,
+    "strength": "required"
+  }
+]
